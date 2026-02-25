@@ -33,10 +33,17 @@ def get_state(db: Session = Depends(get_db)) -> dict[str, Any]:
 
     round_payload: Optional[dict[str, Any]] = None
     if current_round:
+        proposer_name: Optional[str] = None
+        if current_round.proposer_agent_id:
+            proposer = db.query(Agent).filter(Agent.id == current_round.proposer_agent_id).first()
+            proposer_name = proposer.display_name if proposer else None
         round_payload = {
             "id": str(current_round.id),
             "round_number": current_round.round_number,
             "status": current_round.status,
+            "topic": current_round.topic,
+            "proposer_agent_id": str(current_round.proposer_agent_id) if current_round.proposer_agent_id else None,
+            "proposer_agent_name": proposer_name,
             "opened_at": current_round.opened_at.isoformat(),
             "closed_at": current_round.closed_at.isoformat() if current_round.closed_at else None,
         }
@@ -99,15 +106,23 @@ def get_state(db: Session = Depends(get_db)) -> dict[str, Any]:
 
 @router.post("/rounds/open")
 def open_round(
+    body: dict[str, str],
     _: None = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    # Ensure no round is currently open.
+    topic = (body.get("topic") or "").strip()
+    if not topic:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="topic is required")
+    if len(topic) < 3 or len(topic) > 200:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="topic must be between 3 and 200 characters",
+        )
+
     existing_open = db.query(Round).filter(Round.status == "open").first()
     if existing_open:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Round already open")
 
-    # Compute next round number.
     last_number = db.query(func.max(Round.round_number)).scalar() or 0
     now = datetime.now(timezone.utc)
 
@@ -116,6 +131,8 @@ def open_round(
         round_number=last_number + 1,
         opened_at=now,
         closed_at=None,
+        topic=topic,
+        proposer_agent_id=None,
     )
     db.add(new_round)
     db.commit()
@@ -127,6 +144,7 @@ def open_round(
         payload={
             "round_id": str(new_round.id),
             "round_number": new_round.round_number,
+            "topic": new_round.topic,
         },
     )
 
@@ -134,6 +152,7 @@ def open_round(
         "round_id": str(new_round.id),
         "round_number": new_round.round_number,
         "status": "open",
+        "topic": new_round.topic,
     }
 
 
@@ -166,6 +185,60 @@ def close_round(
         "round_id": str(current.id),
         "round_number": current.round_number,
         "status": current.status,
+    }
+
+
+@router.post("/topics/propose")
+def propose_topic(
+    body: dict[str, str],
+    db: Session = Depends(get_db),
+    agent=Depends(get_current_agent),
+) -> dict[str, Any]:
+    topic = (body.get("topic") or "").strip()
+    if not topic:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="topic is required")
+    if len(topic) < 3 or len(topic) > 200:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="topic must be between 3 and 200 characters",
+        )
+
+    existing_open = db.query(Round).filter(Round.status == "open").first()
+    if existing_open:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Round already open")
+
+    last_number = db.query(func.max(Round.round_number)).scalar() or 0
+    now = datetime.now(timezone.utc)
+
+    new_round = Round(
+        status="open",
+        round_number=last_number + 1,
+        opened_at=now,
+        closed_at=None,
+        topic=topic,
+        proposer_agent_id=agent.id,
+    )
+    db.add(new_round)
+    db.commit()
+    db.refresh(new_round)
+
+    log_event(
+        db,
+        event_type="topic_proposed",
+        payload={
+            "round_id": str(new_round.id),
+            "round_number": new_round.round_number,
+            "topic": new_round.topic,
+            "proposer_agent_id": str(agent.id),
+        },
+        actor_agent_id=agent.id,
+    )
+
+    return {
+        "round_id": str(new_round.id),
+        "round_number": new_round.round_number,
+        "status": "open",
+        "topic": new_round.topic,
     }
 
 

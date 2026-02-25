@@ -23,12 +23,32 @@ export async function getArenaState(): Promise<ArenaState> {
   return handleResponse<ArenaState>(resp)
 }
 
-export async function openRound(adminKey: string): Promise<{ round_id: string; round_number: number; status: string }> {
+export async function openRound(
+  adminKey: string,
+  topic: string
+): Promise<{ round_id: string; round_number: number; status: string; topic: string }> {
   const resp = await fetch(`${baseUrl}/v1/arena/rounds/open`, {
     method: 'POST',
     headers: {
+      'Content-Type': 'application/json',
       'X-Admin-Key': adminKey,
     },
+    body: JSON.stringify({ topic }),
+  })
+  return handleResponse(resp)
+}
+
+export async function proposeTopic(
+  apiKey: string,
+  topic: string
+): Promise<{ round_id: string; round_number: number; status: string; topic: string }> {
+  const resp = await fetch(`${baseUrl}/v1/arena/topics/propose`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-Key': apiKey,
+    },
+    body: JSON.stringify({ topic }),
   })
   return handleResponse(resp)
 }

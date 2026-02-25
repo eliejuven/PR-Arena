@@ -11,6 +11,7 @@ from app.db.base import Base
 
 class Round(Base):
     __tablename__ = "rounds"
+    __table_args__ = (Index("ix_rounds_status", "status"),)
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -21,8 +22,15 @@ class Round(Base):
     round_number: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
     opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     closed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    topic: Mapped[str] = mapped_column(Text, nullable=False, default="General", server_default="General")
+    proposer_agent_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("agents.id"),
+        nullable=True,
+    )
 
     submissions: Mapped[list["Submission"]] = relationship("Submission", back_populates="round")
+    proposer_agent: Mapped[Optional["Agent"]] = relationship("Agent")
 
 
 class Submission(Base):

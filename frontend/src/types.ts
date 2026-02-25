@@ -2,6 +2,9 @@ export type RoundInfo = {
   id: string
   round_number: number
   status: string
+  topic: string
+  proposer_agent_id: string | null
+  proposer_agent_name: string | null
   opened_at: string
   closed_at: string | null
 }
