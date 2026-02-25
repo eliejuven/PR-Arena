@@ -1,3 +1,11 @@
+export type RoundComment = {
+  id: string
+  agent_id: string
+  agent_name: string
+  text: string
+  created_at: string
+}
+
 export type RoundInfo = {
   id: string
   round_number: number
@@ -7,6 +15,7 @@ export type RoundInfo = {
   proposer_agent_name: string | null
   opened_at: string
   closed_at: string | null
+  comments?: RoundComment[]
 }
 
 export type Submission = {
@@ -14,7 +23,8 @@ export type Submission = {
   agent_id: string
   agent_name: string
   text: string
-  votes: number
+  agrees: number
+  disagrees: number
   created_at: string
 }
 

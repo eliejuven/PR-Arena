@@ -2,13 +2,6 @@ from uuid import UUID
 
 from fastapi.testclient import TestClient
 
-from app.core.config import get_settings
-
-
-def _admin_headers() -> dict[str, str]:
-  settings = get_settings()
-  return {"X-Admin-Key": settings.admin_key}
-
 
 def _register_agent(client: TestClient, name: str = "Agent") -> str:
   resp = client.post("/v1/agents/register", json={"display_name": name})
@@ -16,37 +9,44 @@ def _register_agent(client: TestClient, name: str = "Agent") -> str:
   return resp.json()["api_key"]
 
 
-def test_admin_open_close_round_and_conflicts(client: TestClient) -> None:
-  # Initially, no round – closing should 409
-  resp = client.post("/v1/arena/rounds/close", headers=_admin_headers())
-  assert resp.status_code == 409
-
-  # Opening without admin key -> 401
-  resp = client.post("/v1/arena/rounds/open")
-  assert resp.status_code == 401
-
-  # Open first round (admin requires topic)
+def _open_round_via_agent(client: TestClient, api_key: str, topic: str = "Test round") -> None:
   resp = client.post(
-      "/v1/arena/rounds/open",
-      headers=_admin_headers(),
-      json={"topic": "Admin-opened round"},
+      "/v1/arena/topics/propose",
+      headers={"X-API-Key": api_key},
+      json={"topic": topic},
   )
   assert resp.status_code == 200
-  data = resp.json()
-  assert data["status"] == "open"
-  assert data["topic"] == "Admin-opened round"
-  round_id = UUID(data["round_id"])
 
-  # Opening again while open -> 409
+
+def _close_round_via_agent(client: TestClient, api_key: str) -> None:
+  resp = client.post("/v1/arena/rounds/close", headers={"X-API-Key": api_key})
+  assert resp.status_code == 200
+
+
+def test_agent_open_close_round_and_conflicts(client: TestClient) -> None:
+  api_key = _register_agent(client, "Closer")
+  # No round – closing should 409
+  resp = client.post("/v1/arena/rounds/close", headers={"X-API-Key": api_key})
+  assert resp.status_code == 409
+
+  # Open round via propose
+  _open_round_via_agent(client, api_key, "Agent-opened round")
+  state = client.get("/v1/arena/state").json()
+  assert state["round"]["status"] == "open"
+  assert state["round"]["topic"] == "Agent-opened round"
+  round_id = UUID(state["round"]["id"])
+
+  # Propose again while open -> 409
+  other_key = _register_agent(client, "Other")
   resp = client.post(
-      "/v1/arena/rounds/open",
-      headers=_admin_headers(),
+      "/v1/arena/topics/propose",
+      headers={"X-API-Key": other_key},
       json={"topic": "Another topic"},
   )
   assert resp.status_code == 409
 
-  # Close round
-  resp = client.post("/v1/arena/rounds/close", headers=_admin_headers())
+  # Close round (any agent)
+  resp = client.post("/v1/arena/rounds/close", headers={"X-API-Key": api_key})
   assert resp.status_code == 200
   data_close = resp.json()
   assert data_close["status"] == "closed"
@@ -54,12 +54,8 @@ def test_admin_open_close_round_and_conflicts(client: TestClient) -> None:
 
 
 def test_agent_can_submit_once_per_round(client: TestClient) -> None:
-  client.post(
-      "/v1/arena/rounds/open",
-      headers=_admin_headers(),
-      json={"topic": "Submit test round"},
-  )
   api_key = _register_agent(client, "Submitter")
+  _open_round_via_agent(client, api_key, "Submit test round")
 
   # First submit works
   resp = client.post(
@@ -76,15 +72,12 @@ def test_agent_can_submit_once_per_round(client: TestClient) -> None:
       headers={"X-API-Key": api_key},
   )
   assert resp.status_code == 409
+  _close_round_via_agent(client, api_key)
 
 
 def test_votes_require_voter_key_and_open_round_and_duplicate_behavior(client: TestClient) -> None:
-  client.post(
-      "/v1/arena/rounds/open",
-      headers=_admin_headers(),
-      json={"topic": "Vote test round"},
-  )
   api_key = _register_agent(client, "Voter-Agent")
+  _open_round_via_agent(client, api_key, "Vote test round")
 
   # Submit one entry
   submit_resp = client.post(
@@ -99,11 +92,11 @@ def test_votes_require_voter_key_and_open_round_and_duplicate_behavior(client: T
   resp = client.post("/v1/arena/vote", json={"submission_id": submission_id})
   assert resp.status_code == 400
 
-  # First vote OK
+  # First vote OK (agree)
   voter_key = "test-voter-1"
   resp = client.post(
       "/v1/arena/vote",
-      json={"submission_id": submission_id, "voter_key": voter_key},
+      json={"submission_id": submission_id, "voter_key": voter_key, "value": "agree"},
   )
   assert resp.status_code == 200
   assert resp.json()["status"] == "ok"
@@ -111,53 +104,50 @@ def test_votes_require_voter_key_and_open_round_and_duplicate_behavior(client: T
   # Duplicate vote returns status duplicate, still 200
   resp = client.post(
       "/v1/arena/vote",
-      json={"submission_id": submission_id, "voter_key": voter_key},
+      json={"submission_id": submission_id, "voter_key": voter_key, "value": "disagree"},
   )
   assert resp.status_code == 200
   assert resp.json()["status"] == "duplicate"
 
   # Close round, further votes get 409
-  client.post("/v1/arena/rounds/close", headers=_admin_headers())
+  _close_round_via_agent(client, api_key)
   resp = client.post(
       "/v1/arena/vote",
       json={"submission_id": submission_id, "voter_key": "another-voter"},
   )
   assert resp.status_code == 409
+  # Round already closed; next tests need no open round (state test will open its own)
 
 
-def test_state_endpoint_returns_counts_and_leaderboard(client: TestClient) -> None:
-  client.post(
-      "/v1/arena/rounds/open",
-      headers=_admin_headers(),
-      json={"topic": "Leaderboard round"},
-  )
+def test_state_endpoint_returns_agrees_disagrees_and_leaderboard(client: TestClient) -> None:
   api_key_a = _register_agent(client, "Agent A")
   api_key_b = _register_agent(client, "Agent B")
+  _open_round_via_agent(client, api_key_a, "Leaderboard round")
 
   # Agent A & B submit
   sub_a = client.post(
       "/v1/arena/submit",
-      json={"text": "A pitch"},
+      json={"text": "A fact"},
       headers={"X-API-Key": api_key_a},
   ).json()
   sub_b = client.post(
       "/v1/arena/submit",
-      json={"text": "B pitch"},
+      json={"text": "B fact"},
       headers={"X-API-Key": api_key_b},
   ).json()
 
-  # Votes: A gets 2 votes, B gets 1
+  # Votes: A gets 2 agree, B gets 1 agree
   client.post(
       "/v1/arena/vote",
-      json={"submission_id": sub_a["id"], "voter_key": "v1"},
+      json={"submission_id": sub_a["id"], "voter_key": "v1", "value": "agree"},
   )
   client.post(
       "/v1/arena/vote",
-      json={"submission_id": sub_a["id"], "voter_key": "v2"},
+      json={"submission_id": sub_a["id"], "voter_key": "v2", "value": "agree"},
   )
   client.post(
       "/v1/arena/vote",
-      json={"submission_id": sub_b["id"], "voter_key": "v3"},
+      json={"submission_id": sub_b["id"], "voter_key": "v3", "value": "agree"},
   )
 
   state = client.get("/v1/arena/state")
@@ -167,21 +157,20 @@ def test_state_endpoint_returns_counts_and_leaderboard(client: TestClient) -> No
   assert payload["round"] is not None
   assert payload["round"]["status"] == "open"
   assert payload["round"]["topic"] == "Leaderboard round"
+  assert "comments" in payload["round"]
 
   submissions = payload["submissions"]
-  # Two submissions in this round
   assert len(submissions) == 2
-  # Check votes per submission
-  votes_by_text = {s["text"]: s["votes"] for s in submissions}
-  assert votes_by_text["A pitch"] == 2
-  assert votes_by_text["B pitch"] == 1
+  by_text = {s["text"]: s for s in submissions}
+  assert by_text["A fact"]["agrees"] == 2
+  assert by_text["A fact"]["disagrees"] == 0
+  assert by_text["B fact"]["agrees"] == 1
+  assert by_text["B fact"]["disagrees"] == 0
 
   leaderboard = payload["leaderboard"]
-  # A should be first with score 2, B second with 1
   assert leaderboard[0]["score"] == 2
   assert leaderboard[1]["score"] == 1
-  # Close round so later tests (e.g. propose) start with no open round
-  client.post("/v1/arena/rounds/close", headers=_admin_headers())
+  _close_round_via_agent(client, api_key_a)
 
 
 def test_propose_topic_opens_round(client: TestClient) -> None:
@@ -205,15 +194,12 @@ def test_propose_topic_opens_round(client: TestClient) -> None:
   assert payload["round"]["topic"] == "Market a solar-powered backpack"
   assert payload["round"]["proposer_agent_id"] is not None
   assert payload["round"]["proposer_agent_name"] == "Proposer"
+  _close_round_via_agent(client, api_key)
 
 
 def test_propose_when_round_already_open_returns_409(client: TestClient) -> None:
-  client.post(
-      "/v1/arena/rounds/open",
-      headers=_admin_headers(),
-      json={"topic": "Existing round"},
-  )
   api_key = _register_agent(client, "Proposer")
+  _open_round_via_agent(client, api_key, "Existing round")
   resp = client.post(
       "/v1/arena/topics/propose",
       headers={"X-API-Key": api_key},
@@ -222,12 +208,11 @@ def test_propose_when_round_already_open_returns_409(client: TestClient) -> None
   assert resp.status_code == 409
 
 
-def test_admin_open_requires_topic(client: TestClient) -> None:
-  resp = client.post("/v1/arena/rounds/open", headers=_admin_headers())
-  assert resp.status_code == 422  # no body
+def test_propose_requires_topic(client: TestClient) -> None:
+  api_key = _register_agent(client, "Proposer")
   resp = client.post(
-      "/v1/arena/rounds/open",
-      headers=_admin_headers(),
+      "/v1/arena/topics/propose",
+      headers={"X-API-Key": api_key},
       json={},
   )
   assert resp.status_code == 400

@@ -23,21 +23,6 @@ export async function getArenaState(): Promise<ArenaState> {
   return handleResponse<ArenaState>(resp)
 }
 
-export async function openRound(
-  adminKey: string,
-  topic: string
-): Promise<{ round_id: string; round_number: number; status: string; topic: string }> {
-  const resp = await fetch(`${baseUrl}/v1/arena/rounds/open`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Admin-Key': adminKey,
-    },
-    body: JSON.stringify({ topic }),
-  })
-  return handleResponse(resp)
-}
-
 export async function proposeTopic(
   apiKey: string,
   topic: string
@@ -53,12 +38,25 @@ export async function proposeTopic(
   return handleResponse(resp)
 }
 
-export async function closeRound(adminKey: string): Promise<{ round_id: string; round_number: number; status: string }> {
+export async function closeRound(apiKey: string): Promise<{ round_id: string; round_number: number; status: string }> {
   const resp = await fetch(`${baseUrl}/v1/arena/rounds/close`, {
     method: 'POST',
     headers: {
-      'X-Admin-Key': adminKey,
+      'Content-Type': 'application/json',
+      'X-API-Key': apiKey,
     },
+  })
+  return handleResponse(resp)
+}
+
+export async function addComment(apiKey: string, text: string): Promise<{ id: string; text: string; created_at: string }> {
+  const resp = await fetch(`${baseUrl}/v1/arena/comments`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-Key': apiKey,
+    },
+    body: JSON.stringify({ text }),
   })
   return handleResponse(resp)
 }
@@ -77,11 +75,15 @@ export async function submitPitch(apiKey: string, text: string): Promise<{ id: s
 
 export type VoteResult = { status: 'ok' } | { status: 'duplicate' }
 
-export async function vote(submissionId: string, voterKey: string): Promise<VoteResult> {
+export async function vote(
+  submissionId: string,
+  voterKey: string,
+  value: 'agree' | 'disagree' = 'agree'
+): Promise<VoteResult> {
   const resp = await fetch(`${baseUrl}/v1/arena/vote`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ submission_id: submissionId, voter_key: voterKey }),
+    body: JSON.stringify({ submission_id: submissionId, voter_key: voterKey, value }),
   })
   if (!resp.ok) {
     await handleResponse<never>(resp)

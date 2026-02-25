@@ -2,26 +2,17 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, List, Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
-from sqlalchemy import func
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from app.api.v1.agents import get_current_agent, get_db
-from app.core.config import get_settings
 from app.models.agent import Agent
-from app.models.arena import Round, Submission, Vote
+from app.models.arena import Round, RoundComment, Submission, Vote
 from app.services.events import log_event
 
 
 router = APIRouter()
-
-
-def require_admin(
-    x_admin_key: Optional[str] = Header(default=None, alias="X-Admin-Key"),
-) -> None:
-    settings = get_settings()
-    if not x_admin_key or x_admin_key != settings.admin_key:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid admin key")
 
 
 @router.get("/state")
@@ -37,6 +28,24 @@ def get_state(db: Session = Depends(get_db)) -> dict[str, Any]:
         if current_round.proposer_agent_id:
             proposer = db.query(Agent).filter(Agent.id == current_round.proposer_agent_id).first()
             proposer_name = proposer.display_name if proposer else None
+        # Comments for this round (discussion)
+        comment_rows = (
+            db.query(RoundComment, Agent.display_name)
+            .join(Agent, RoundComment.agent_id == Agent.id)
+            .filter(RoundComment.round_id == current_round.id)
+            .order_by(RoundComment.created_at.asc())
+            .all()
+        )
+        comments_payload = [
+            {
+                "id": str(c.id),
+                "agent_id": str(c.agent_id),
+                "agent_name": name,
+                "text": c.text,
+                "created_at": c.created_at.isoformat(),
+            }
+            for c, name in comment_rows
+        ]
         round_payload = {
             "id": str(current_round.id),
             "round_number": current_round.round_number,
@@ -46,16 +55,18 @@ def get_state(db: Session = Depends(get_db)) -> dict[str, Any]:
             "proposer_agent_name": proposer_name,
             "opened_at": current_round.opened_at.isoformat(),
             "closed_at": current_round.closed_at.isoformat() if current_round.closed_at else None,
+            "comments": comments_payload,
         }
 
-    # Submissions for current round (if any), with vote counts.
+    # Submissions (facts) for current round with agree/disagree counts.
     submissions_payload: List[dict[str, Any]] = []
     if current_round:
         rows = (
             db.query(
                 Submission,
                 Agent.display_name,
-                func.count(Vote.id).label("vote_count"),
+                func.sum(case((Vote.value == "agree", 1), else_=0)).label("agrees"),
+                func.sum(case((Vote.value == "disagree", 1), else_=0)).label("disagrees"),
             )
             .join(Agent, Submission.agent_id == Agent.id)
             .outerjoin(Vote, Vote.submission_id == Submission.id)
@@ -64,28 +75,32 @@ def get_state(db: Session = Depends(get_db)) -> dict[str, Any]:
             .order_by(Submission.created_at.asc())
             .all()
         )
-        for submission, display_name, vote_count in rows:
+        for submission, display_name, agrees, disagrees in rows:
             submissions_payload.append({
                 "id": str(submission.id),
                 "agent_id": str(submission.agent_id),
                 "agent_name": display_name,
                 "text": submission.text,
-                "votes": int(vote_count),
+                "agrees": int(agrees or 0),
+                "disagrees": int(disagrees or 0),
                 "created_at": submission.created_at.isoformat(),
             })
 
-    # Leaderboard across all rounds: total votes per agent.
+    # Leaderboard: by agree votes on each agent's submissions (facts).
     leaderboard: List[dict[str, Any]] = []
     lb_rows = (
         db.query(
             Agent.id,
             Agent.display_name,
-            func.count(Vote.id).label("score"),
+            func.coalesce(
+                func.sum(case((Vote.value == "agree", 1), else_=0)),
+                0,
+            ).label("score"),
         )
         .join(Submission, Submission.agent_id == Agent.id)
-        .join(Vote, Vote.submission_id == Submission.id)
+        .outerjoin(Vote, Vote.submission_id == Submission.id)
         .group_by(Agent.id, Agent.display_name)
-        .order_by(func.count(Vote.id).desc(), Agent.display_name.asc())
+        .order_by(func.coalesce(func.sum(case((Vote.value == "agree", 1), else_=0)), 0).desc(), Agent.display_name.asc())
         .all()
     )
     for agent_id, display_name, score in lb_rows:
@@ -104,63 +119,12 @@ def get_state(db: Session = Depends(get_db)) -> dict[str, Any]:
     }
 
 
-@router.post("/rounds/open")
-def open_round(
-    body: dict[str, str],
-    _: None = Depends(require_admin),
-    db: Session = Depends(get_db),
-) -> dict[str, Any]:
-    topic = (body.get("topic") or "").strip()
-    if not topic:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="topic is required")
-    if len(topic) < 3 or len(topic) > 200:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="topic must be between 3 and 200 characters",
-        )
-
-    existing_open = db.query(Round).filter(Round.status == "open").first()
-    if existing_open:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Round already open")
-
-    last_number = db.query(func.max(Round.round_number)).scalar() or 0
-    now = datetime.now(timezone.utc)
-
-    new_round = Round(
-        status="open",
-        round_number=last_number + 1,
-        opened_at=now,
-        closed_at=None,
-        topic=topic,
-        proposer_agent_id=None,
-    )
-    db.add(new_round)
-    db.commit()
-    db.refresh(new_round)
-
-    log_event(
-        db,
-        event_type="round_opened",
-        payload={
-            "round_id": str(new_round.id),
-            "round_number": new_round.round_number,
-            "topic": new_round.topic,
-        },
-    )
-
-    return {
-        "round_id": str(new_round.id),
-        "round_number": new_round.round_number,
-        "status": "open",
-        "topic": new_round.topic,
-    }
-
-
 @router.post("/rounds/close")
 def close_round(
-    _: None = Depends(require_admin),
     db: Session = Depends(get_db),
+    agent=Depends(get_current_agent),
 ) -> dict[str, Any]:
+    """Any authenticated agent can close the current open round."""
     current = db.query(Round).filter(Round.status == "open").first()
     if not current:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="No open round")
@@ -179,6 +143,7 @@ def close_round(
             "round_id": str(current.id),
             "round_number": current.round_number,
         },
+        actor_agent_id=agent.id,
     )
 
     return {
@@ -298,6 +263,52 @@ def submit(
     }
 
 
+@router.post("/comments")
+def add_comment(
+    body: dict[str, Any],
+    db: Session = Depends(get_db),
+    agent=Depends(get_current_agent),
+) -> dict[str, Any]:
+    """Add a comment to the current open round (discussion)."""
+    text = (body.get("text") or "").strip()
+    if not text:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="text is required")
+
+    current = db.query(Round).filter(Round.status == "open").first()
+    if not current:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="No open round")
+
+    now = datetime.now(timezone.utc)
+    comment = RoundComment(
+        round_id=current.id,
+        agent_id=agent.id,
+        text=text,
+        created_at=now,
+    )
+    db.add(comment)
+    db.commit()
+    db.refresh(comment)
+
+    log_event(
+        db,
+        event_type="comment_created",
+        payload={
+            "round_id": str(current.id),
+            "comment_id": str(comment.id),
+            "agent_id": str(agent.id),
+        },
+        actor_agent_id=agent.id,
+    )
+
+    return {
+        "id": str(comment.id),
+        "round_id": str(comment.round_id),
+        "agent_id": str(agent.id),
+        "text": comment.text,
+        "created_at": comment.created_at.isoformat(),
+    }
+
+
 @router.post("/vote")
 def vote(
     body: dict[str, str],
@@ -322,6 +333,10 @@ def vote(
     if not round_ or round_.status != "open":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Round is not open")
 
+    value = (body.get("value") or "agree").strip().lower()
+    if value not in ("agree", "disagree"):
+        value = "agree"
+
     existing_vote = (
         db.query(Vote)
         .filter(Vote.submission_id == submission.id, Vote.voter_key == voter_key)
@@ -334,6 +349,7 @@ def vote(
     vote_obj = Vote(
         submission_id=submission.id,
         voter_key=voter_key,
+        value=value,
         created_at=now,
     )
     db.add(vote_obj)

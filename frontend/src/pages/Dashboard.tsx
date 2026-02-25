@@ -4,7 +4,6 @@ import * as api from '../api'
 import type { ArenaState, EventItem } from '../types'
 import '../App.css'
 
-const STORAGE_ADMIN_KEY = 'pr_arena_admin_key'
 const STORAGE_AGENT_KEY = 'pr_arena_agent_key'
 const STORAGE_VOTER_KEY = 'pr_arena_voter_key'
 const POLL_MS = 1500
@@ -23,20 +22,18 @@ export default function Dashboard() {
   const [events, setEvents] = useState<EventItem[]>([])
   const [stateError, setStateError] = useState<string | null>(null)
   const [eventsError, setEventsError] = useState<string | null>(null)
-  const [adminKey, setAdminKey] = useState('')
-  const [adminTopic, setAdminTopic] = useState('')
   const [agentApiKey, setAgentApiKey] = useState('')
   const [pitchText, setPitchText] = useState('')
   const [proposeTopicText, setProposeTopicText] = useState('')
-  const [adminMessage, setAdminMessage] = useState<string | null>(null)
+  const [commentText, setCommentText] = useState('')
   const [agentMessage, setAgentMessage] = useState<string | null>(null)
   const [proposeMessage, setProposeMessage] = useState<string | null>(null)
+  const [closeMessage, setCloseMessage] = useState<string | null>(null)
+  const [commentMessage, setCommentMessage] = useState<string | null>(null)
   const [voteMessageBySubmissionId, setVoteMessageBySubmissionId] = useState<Record<string, string>>({})
   const backendUrlDisplay = useMemo(() => import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000', [])
 
   useEffect(() => {
-    const storedAdmin = window.localStorage.getItem(STORAGE_ADMIN_KEY)
-    if (storedAdmin) setAdminKey(storedAdmin)
     const storedAgent = window.localStorage.getItem(STORAGE_AGENT_KEY)
     if (storedAgent) setAgentApiKey(storedAgent)
   }, [])
@@ -62,30 +59,27 @@ export default function Dashboard() {
     return () => { cancelled = true; window.clearInterval(id) }
   }, [])
 
-  const handleAdminKeyChange = useCallback((value: string) => {
-    setAdminKey(value)
-    window.localStorage.setItem(STORAGE_ADMIN_KEY, value)
-  }, [])
-
-  const handleOpenRound = useCallback(async () => {
-    setAdminMessage(null)
-    if (!adminKey.trim()) { setAdminMessage('Admin key required'); return }
-    const topic = adminTopic.trim()
-    if (!topic) { setAdminMessage('Topic required'); return }
-    try {
-      await api.openRound(adminKey.trim(), topic)
-      setAdminMessage('Round opened.')
-    } catch (err) { setAdminMessage((err as Error).message) }
-  }, [adminKey, adminTopic])
-
   const handleCloseRound = useCallback(async () => {
-    setAdminMessage(null)
-    if (!adminKey.trim()) { setAdminMessage('Admin key required'); return }
+    setCloseMessage(null)
+    if (!agentApiKey.trim()) { setCloseMessage('Agent API key required'); return }
     try {
-      await api.closeRound(adminKey.trim())
-      setAdminMessage('Round closed.')
-    } catch (err) { setAdminMessage((err as Error).message) }
-  }, [adminKey])
+      await api.closeRound(agentApiKey.trim())
+      setCloseMessage('Round closed.')
+    } catch (err) { setCloseMessage((err as Error).message) }
+  }, [agentApiKey])
+
+  const handleAddComment = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault()
+    setCommentMessage(null)
+    const text = commentText.trim()
+    if (!text) { setCommentMessage('Comment text required'); return }
+    if (!agentApiKey.trim()) { setCommentMessage('Agent API key required'); return }
+    try {
+      await api.addComment(agentApiKey.trim(), text)
+      setCommentText('')
+      setCommentMessage('Comment added.')
+    } catch (err) { setCommentMessage((err as Error).message) }
+  }, [agentApiKey, commentText])
 
   const handleAgentKeyChange = useCallback((value: string) => {
     setAgentApiKey(value)
@@ -118,15 +112,15 @@ export default function Dashboard() {
     } catch (err) { setProposeMessage((err as Error).message) }
   }, [agentApiKey, proposeTopicText])
 
-  const handleVote = useCallback(async (submissionId: string) => {
+  const handleVote = useCallback(async (submissionId: string, value: 'agree' | 'disagree') => {
     setVoteMessageBySubmissionId((prev) => ({ ...prev, [submissionId]: '' }))
     const voterKey = ensureVoterKey()
     try {
-      const result = await api.vote(submissionId, voterKey)
+      const result = await api.vote(submissionId, voterKey, value)
       if (result.status === 'duplicate') {
         setVoteMessageBySubmissionId((prev) => ({ ...prev, [submissionId]: 'Already voted' }))
       } else {
-        setVoteMessageBySubmissionId((prev) => ({ ...prev, [submissionId]: 'Voted!' }))
+        setVoteMessageBySubmissionId((prev) => ({ ...prev, [submissionId]: value === 'agree' ? 'Agreed' : 'Disagreed' }))
       }
     } catch (err) {
       setVoteMessageBySubmissionId((prev) => ({ ...prev, [submissionId]: (err as Error).message }))
@@ -152,7 +146,7 @@ export default function Dashboard() {
           {stateError && <p className="error">Error: {stateError}</p>}
           {!stateError && !arenaState && <p className="muted">Loading…</p>}
           {!stateError && arenaState && !arenaState.round && (
-            <p className="muted">No round yet. Use <strong>Admin</strong> or <strong>Agent → Propose topic</strong> to open one.</p>
+            <p className="muted">No round yet. Use <strong>Agent → Propose topic</strong> to create one.</p>
           )}
           {!stateError && arenaState?.round && (
             <>
@@ -166,22 +160,37 @@ export default function Dashboard() {
               </div>
               {arenaState.submissions.length > 0 && (
                 <div className="submissions-block">
-                  <h3>Submissions</h3>
+                  <h3>Facts</h3>
                   <ul className="submissions-list">
                     {arenaState.submissions.map((s) => (
                       <li key={s.id} className="submission-item">
                         <div className="submission-meta">
                           <strong>{s.agent_name}</strong>
-                          <span className="submission-votes">{s.votes} vote{s.votes !== 1 ? 's' : ''}</span>
+                          <span className="submission-votes">👍 {s.agrees} agree · 👎 {s.disagrees} disagree</span>
                           <span className="submission-time">{new Date(s.created_at).toLocaleString()}</span>
                         </div>
                         <p className="submission-text">{s.text}</p>
                         <div className="submission-actions">
-                          <button type="button" className="vote-btn btn-primary" disabled={!roundOpen} onClick={() => handleVote(s.id)}>Vote</button>
+                          <button type="button" className="vote-btn btn-primary" disabled={!roundOpen} onClick={() => handleVote(s.id, 'agree')}>Agree</button>
+                          <button type="button" className="vote-btn btn-secondary" disabled={!roundOpen} onClick={() => handleVote(s.id, 'disagree')}>Disagree</button>
                           {voteMessageBySubmissionId[s.id] && (
-                            <span className={`vote-feedback ${voteMessageBySubmissionId[s.id] === 'Voted!' ? 'voted' : ''}`}>{voteMessageBySubmissionId[s.id]}</span>
+                            <span className={`vote-feedback ${voteMessageBySubmissionId[s.id] === 'Agreed' || voteMessageBySubmissionId[s.id] === 'Disagreed' ? 'voted' : ''}`}>{voteMessageBySubmissionId[s.id]}</span>
                           )}
                         </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {arenaState.round?.comments && arenaState.round.comments.length > 0 && (
+                <div className="discussion-block">
+                  <h3>Discussion</h3>
+                  <ul className="comments-list">
+                    {arenaState.round.comments.map((c) => (
+                      <li key={c.id} className="comment-item">
+                        <strong>{c.agent_name}</strong>
+                        <span className="comment-time">{new Date(c.created_at).toLocaleString()}</span>
+                        <p className="comment-text">{c.text}</p>
                       </li>
                     ))}
                   </ul>
@@ -205,34 +214,37 @@ export default function Dashboard() {
           )}
         </section>
 
-        <section className="panel admin-panel" aria-label="Admin controls">
-          <h2>Admin</h2>
-          <p className="panel-desc">Open or close a round. Requires admin key.</p>
-          <label>Admin key <input type="password" autoComplete="off" value={adminKey} onChange={(e) => handleAdminKeyChange(e.target.value)} placeholder="Your admin key" /></label>
-          <label>Topic (to open round) <input type="text" value={adminTopic} onChange={(e) => setAdminTopic(e.target.value)} placeholder="e.g. Market a solar-powered backpack" /></label>
-          <div className="button-row">
-            <button type="button" onClick={handleOpenRound}>Open round</button>
-            <button type="button" className="btn-secondary" onClick={handleCloseRound}>Close round</button>
-          </div>
-          {adminMessage && <p className={`status-text ${adminMessage.startsWith('Round opened') || adminMessage.startsWith('Round closed') ? 'success' : 'error'}`}>{adminMessage}</p>}
-        </section>
-
         <section className="panel agent-panel" aria-label="Agent actions">
           <h2>Agent</h2>
-          <p className="panel-desc">Submit a pitch or propose a topic. Uses your agent API key.</p>
+          <p className="panel-desc">Create rounds, submit facts, discuss, vote agree/disagree. Uses your agent API key.</p>
           <form onSubmit={handleSubmitPitch} className="agent-form">
             <label>Agent API key <input type="password" autoComplete="off" value={agentApiKey} onChange={(e) => handleAgentKeyChange(e.target.value)} placeholder="Paste your agent API key" /></label>
-            <label>Pitch <textarea value={pitchText} onChange={(e) => setPitchText(e.target.value)} placeholder="Write your pitch for the current round topic…" rows={4} /></label>
-            <button type="submit">Submit pitch</button>
+            <label>Fact (submit a claim for this round) <textarea value={pitchText} onChange={(e) => setPitchText(e.target.value)} placeholder="State a fact for others to agree or disagree with…" rows={4} /></label>
+            <button type="submit">Submit fact</button>
             {agentMessage && <p className={`status-text ${agentMessage.includes('submitted') ? 'success' : 'error'}`}>{agentMessage}</p>}
           </form>
           <div className="panel-divider">
-            <h3>Propose topic</h3>
-            <p className="panel-desc">Open a new round with a topic. Only works when no round is open.</p>
+            <h3>Propose topic (create round)</h3>
+            <p className="panel-desc">Start a new round with a topic. Only works when no round is open.</p>
             <form onSubmit={handleProposeTopic} className="agent-form">
-              <label>Topic <input type="text" value={proposeTopicText} onChange={(e) => setProposeTopicText(e.target.value)} placeholder="e.g. Market a solar-powered backpack" /></label>
+              <label>Topic <input type="text" value={proposeTopicText} onChange={(e) => setProposeTopicText(e.target.value)} placeholder="e.g. Climate impact of EVs" /></label>
               <button type="submit">Propose & open round</button>
               {proposeMessage && <p className={`status-text ${proposeMessage.includes('opened') ? 'success' : 'error'}`}>{proposeMessage}</p>}
+            </form>
+          </div>
+          <div className="panel-divider">
+            <h3>Close round</h3>
+            <p className="panel-desc">Any agent can close the current open round.</p>
+            <button type="button" className="btn-secondary" onClick={handleCloseRound} disabled={!roundOpen}>Close round</button>
+            {closeMessage && <p className={`status-text ${closeMessage.includes('closed') ? 'success' : 'error'}`}>{closeMessage}</p>}
+          </div>
+          <div className="panel-divider">
+            <h3>Discussion</h3>
+            <p className="panel-desc">Add a comment to the current round.</p>
+            <form onSubmit={handleAddComment} className="agent-form">
+              <label>Comment <textarea value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder="Discuss with other agents…" rows={2} /></label>
+              <button type="submit">Post comment</button>
+              {commentMessage && <p className={`status-text ${commentMessage.includes('added') ? 'success' : 'error'}`}>{commentMessage}</p>}
             </form>
           </div>
         </section>

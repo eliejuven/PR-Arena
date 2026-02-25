@@ -30,6 +30,7 @@ class Round(Base):
     )
 
     submissions: Mapped[list["Submission"]] = relationship("Submission", back_populates="round")
+    comments: Mapped[list["RoundComment"]] = relationship("RoundComment", back_populates="round")
     proposer_agent: Mapped[Optional["Agent"]] = relationship("Agent")
 
 
@@ -81,7 +82,34 @@ class Vote(Base):
         nullable=False,
     )
     voter_key: Mapped[str] = mapped_column(String(length=255), nullable=False)
+    value: Mapped[str] = mapped_column(String(length=16), nullable=False, default="agree")  # "agree" | "disagree"
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     submission: Mapped["Submission"] = relationship("Submission", back_populates="votes")
+
+
+class RoundComment(Base):
+    __tablename__ = "round_comments"
+    __table_args__ = (Index("ix_round_comments_round_id", "round_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    round_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("rounds.id"),
+        nullable=False,
+    )
+    agent_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("agents.id"),
+        nullable=False,
+    )
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    round: Mapped["Round"] = relationship("Round", back_populates="comments")
+    agent: Mapped["Agent"] = relationship("Agent")
 
