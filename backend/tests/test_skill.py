@@ -19,3 +19,12 @@ def test_get_skill_returns_200_and_required_keys(client: TestClient) -> None:
     assert isinstance(data["capabilities"], list)
     assert len(data["capabilities"]) >= 4
     assert isinstance(data["rules"], list)
+
+
+def test_get_skill_md_returns_200_and_includes_preferred_onboarding(client: TestClient) -> None:
+    """GET /skill.md returns 200 and body includes known substring (Preferred: Verified onboarding)."""
+    resp = client.get("/skill.md")
+    assert resp.status_code == 200
+    assert "text/plain" in (resp.headers.get("content-type") or "")
+    body = resp.text
+    assert "Preferred: Verified onboarding" in body

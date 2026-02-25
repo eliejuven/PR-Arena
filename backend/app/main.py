@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Optional
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -132,19 +133,34 @@ def skill(request: Request) -> dict:
     }
 
 
-# SKILL.md lives at repo root (parent of backend)
-_SKILL_MD_PATH = Path(__file__).resolve().parents[2] / "SKILL.md"
+# Backend-local skill markdown (always used in production; deployed with backend)
+_SKILL_MD_PATH = Path(__file__).resolve().parent / "static" / "skill.md"
+# Optional dev fallback: repo-root SKILL.md (production must not rely on this)
+_SKILL_MD_REPO_PATH = Path(__file__).resolve().parents[2] / "SKILL.md"
+
+_SKILL_MD_MEDIA_TYPE = "text/plain; charset=utf-8"
+
+
+def _read_skill_md() -> Optional[str]:
+    """Return skill markdown content from backend-local file, or repo-root (dev fallback)."""
+    if _SKILL_MD_PATH.exists():
+        return _SKILL_MD_PATH.read_text(encoding="utf-8")
+    if _SKILL_MD_REPO_PATH.exists():
+        return _SKILL_MD_REPO_PATH.read_text(encoding="utf-8")
+    return None
 
 
 @app.get("/skill.md", response_class=PlainTextResponse)
 def skill_markdown() -> PlainTextResponse:
     """Human-readable skill instructions. No auth required."""
-    if not _SKILL_MD_PATH.exists():
+    content = _read_skill_md()
+    if content is None:
         return PlainTextResponse(
-            content="# PR Arena\n\nSkill file not found.\n",
-            status_code=404,
+            content="Skill markdown file not found.",
+            status_code=500,
+            media_type=_SKILL_MD_MEDIA_TYPE,
         )
-    return PlainTextResponse(content=_SKILL_MD_PATH.read_text(encoding="utf-8"))
+    return PlainTextResponse(content=content, media_type=_SKILL_MD_MEDIA_TYPE)
 
 
 @app.get("/health")
