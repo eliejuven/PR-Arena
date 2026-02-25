@@ -13,6 +13,10 @@ class Settings(BaseSettings):
         validation_alias="CORS_ORIGINS",
     )
     admin_key: str = Field(default="changeme-admin", validation_alias="ADMIN_KEY")
+    frontend_public_base: str = Field(
+        default="",
+        validation_alias="FRONTEND_PUBLIC_BASE",
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",

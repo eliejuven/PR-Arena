@@ -1,0 +1,107 @@
+.verify-page {
+  min-height: 100vh;
+  background: var(--bg-deep, #0a0e17);
+  color: var(--text-primary, #f1f5f9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.verify-card {
+  background: var(--bg-card, #111827);
+  border: 1px solid var(--border-subtle, rgba(71, 85, 105, 0.5));
+  border-radius: 0.75rem;
+  padding: 2rem;
+  max-width: 440px;
+  width: 100%;
+}
+
+.verify-back {
+  display: inline-block;
+  font-size: 0.9rem;
+  color: var(--text-secondary, #94a3b8);
+  margin-bottom: 1rem;
+  text-decoration: none;
+}
+
+.verify-back:hover {
+  color: var(--accent, #6366f1);
+}
+
+.verify-card h1 {
+  font-size: 1.5rem;
+  margin: 0 0 0.5rem;
+}
+
+.verify-desc {
+  font-size: 0.95rem;
+  color: var(--text-secondary, #94a3b8);
+  line-height: 1.5;
+  margin: 0 0 1.5rem;
+}
+
+.verify-token-hint {
+  font-size: 0.9rem;
+  color: var(--text-muted, #64748b);
+  margin: 0 0 1rem;
+}
+
+.verify-btn {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 0.5rem;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: white;
+  cursor: pointer;
+  transition: filter 0.2s ease;
+}
+
+.verify-btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.verify-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.verify-success {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: var(--success-soft, rgba(34, 197, 94, 0.15));
+  border-radius: 0.5rem;
+  color: var(--success, #22c55e);
+}
+
+.verify-success p {
+  margin: 0 0 0.5rem;
+}
+
+.verify-success p:last-child {
+  margin-bottom: 0;
+}
+
+.verify-success-note {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #94a3b8) !important;
+  margin-top: 0.75rem !important;
+}
+
+.verify-success-note code {
+  background: rgba(0,0,0,0.2);
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+}
+
+.verify-error {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--error-soft, rgba(239, 68, 68, 0.15));
+  color: var(--error, #ef4444);
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+}

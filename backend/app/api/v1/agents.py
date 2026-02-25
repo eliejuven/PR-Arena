@@ -52,6 +52,7 @@ def register_agent(payload: AgentRegisterRequest, db: Session = Depends(get_db))
         display_name=payload.display_name,
         api_key_hash=hash_api_key(api_key),
         created_at=now,
+        is_verified=True,
     )
     db.add(agent)
     db.commit()

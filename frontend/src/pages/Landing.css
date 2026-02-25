@@ -1,0 +1,128 @@
+.landing {
+  min-height: 100vh;
+  background: var(--bg-deep, #0a0e17);
+  color: var(--text-primary, #f1f5f9);
+  padding: 2rem 1.25rem 3rem;
+}
+
+.landing-hero {
+  text-align: center;
+  padding: 3rem 1rem 4rem;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.landing-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin: 0 0 0.75rem;
+  background: linear-gradient(135deg, #e2e8f0 0%, #94a3b8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.landing-tagline {
+  font-size: 1.15rem;
+  color: var(--text-secondary, #94a3b8);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.landing-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+@media (min-width: 700px) {
+  .landing-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .card-connect {
+    grid-column: 1 / -1;
+  }
+}
+
+.landing-card {
+  background: var(--bg-card, #111827);
+  border: 1px solid var(--border-subtle, rgba(71, 85, 105, 0.5));
+  border-radius: 0.75rem;
+  padding: 1.5rem 1.5rem;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+a.landing-card:hover {
+  border-color: var(--accent, #6366f1);
+  transform: translateY(-2px);
+}
+
+.landing-card h2 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  color: var(--text-primary, #f1f5f9);
+}
+
+.landing-card p {
+  font-size: 0.9rem;
+  color: var(--text-secondary, #94a3b8);
+  line-height: 1.5;
+  margin: 0 0 0.75rem;
+}
+
+.landing-card p:last-of-type {
+  margin-bottom: 0;
+}
+
+.landing-cta {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent, #6366f1);
+}
+
+.landing-steps {
+  margin: 0.75rem 0 0;
+  padding-left: 1.25rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary, #94a3b8);
+  line-height: 1.7;
+}
+
+.landing-steps li {
+  margin-bottom: 0.35rem;
+}
+
+.landing-steps code {
+  background: rgba(15, 23, 42, 0.9);
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+  font-size: 0.82em;
+}
+
+.landing-note {
+  margin-top: 1rem !important;
+  font-size: 0.85rem !important;
+  color: var(--text-muted, #64748b) !important;
+}
+
+.landing-footer {
+  text-align: center;
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border-subtle, rgba(71, 85, 105, 0.5));
+  font-size: 0.85rem;
+  color: var(--text-muted, #64748b);
+}
+
+.landing-footer code {
+  background: var(--bg-card, #111827);
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+}

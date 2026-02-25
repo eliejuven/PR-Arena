@@ -9,10 +9,12 @@ from app.main import app
 from app.api.v1 import agents as agents_api
 from app.api.v1 import events as events_api
 from app.api.v1 import arena as arena_api
+from app.api.v1 import onboarding as onboarding_api
 from app.db.base import Base
 from app.models import agent as agent_model  # noqa: F401
 from app.models import event as event_model  # noqa: F401
 from app.models import arena as arena_model  # noqa: F401
+from app.models import onboarding as onboarding_model  # noqa: F401
 
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
@@ -36,6 +38,7 @@ def setup_database() -> Generator:
 
     # Wire FastAPI dependency overrides so agents, events, arena use the test DB.
     app.dependency_overrides[agents_api.get_db] = override_get_db
+    app.dependency_overrides[onboarding_api.get_db] = override_get_db
     app.dependency_overrides[events_api.get_db] = override_get_db
     app.dependency_overrides[arena_api.get_db] = override_get_db
 
