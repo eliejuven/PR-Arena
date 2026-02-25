@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import List, Optional
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,6 +17,14 @@ class Settings(BaseSettings):
         default="",
         validation_alias="FRONTEND_PUBLIC_BASE",
     )
+
+    @field_validator("frontend_public_base", mode="before")
+    @classmethod
+    def normalize_frontend_public_base(cls, v: Optional[str]) -> str:
+        """Read from env; default empty. Strip whitespace and strip trailing /."""
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return ""
+        return str(v).strip().rstrip("/")
 
     model_config = SettingsConfigDict(
         env_file=".env",

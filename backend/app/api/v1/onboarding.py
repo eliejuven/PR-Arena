@@ -1,6 +1,7 @@
+import logging
 import secrets
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
@@ -11,6 +12,7 @@ from app.db.session import SessionLocal
 from app.models.agent import Agent
 from app.models.onboarding import AgentOnboarding
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -22,11 +24,26 @@ def get_db():
         db.close()
 
 
-def _verification_base_url(request: Request) -> str:
-    base = get_settings().frontend_public_base.strip()
-    if base:
-        return base.rstrip("/")
-    return str(request.base_url).rstrip("/")
+def _verification_base_url(request: Request) -> Tuple[str, str]:
+    """
+    Return (base_url, source) for building verification_url.
+    Prefer FRONTEND_PUBLIC_BASE from env; else X-Forwarded-Proto + X-Forwarded-Host; else request base.
+    """
+    settings = get_settings()
+    base_from_env = (settings.frontend_public_base or "").strip()
+    if base_from_env:
+        base = base_from_env.rstrip("/")
+        logger.debug("verification base URL from FRONTEND_PUBLIC_BASE: %s", base)
+        return base, "env"
+    proto = request.headers.get("x-forwarded-proto") or request.url.scheme
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
+    if host:
+        base = f"{proto}://{host}".rstrip("/")
+        logger.debug("verification base URL from forwarded headers / request host: %s", base)
+        return base, "request"
+    base = str(request.base_url).rstrip("/")
+    logger.debug("verification base URL from request.base_url: %s", base)
+    return base, "request"
 
 
 @router.post("/init")
@@ -63,8 +80,18 @@ def onboarding_init(
     db.add(onboarding)
     db.commit()
 
-    base = _verification_base_url(request)
+    base, _source = _verification_base_url(request)
     verification_url = f"{base}/verify?token={human_token}"
+
+    # Protection: when FRONTEND_PUBLIC_BASE is set, verification_url must point to frontend (not backend)
+    settings = get_settings()
+    if (settings.frontend_public_base or "").strip():
+        expected_prefix = (settings.frontend_public_base or "").strip().rstrip("/")
+        if not verification_url.startswith(expected_prefix) or "/verify?token=" not in verification_url:
+            logger.warning(
+                "verification_url built with FRONTEND_PUBLIC_BASE but result does not match; base=%s",
+                expected_prefix,
+            )
 
     return {
         "agent_id": str(agent.id),

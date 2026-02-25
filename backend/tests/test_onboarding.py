@@ -1,6 +1,9 @@
 """Tests for verified agent onboarding flow."""
 
+import pytest
 from fastapi.testclient import TestClient
+
+from app.core.config import get_settings
 
 
 def test_init_returns_verification_url_and_claim_token(client: TestClient) -> None:
@@ -16,6 +19,50 @@ def test_init_returns_verification_url_and_claim_token(client: TestClient) -> No
     assert "message" in data
     assert "/verify?token=" in data["verification_url"]
     assert len(data["claim_token"]) > 10
+
+
+def test_init_verification_url_uses_frontend_base_when_env_set(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When FRONTEND_PUBLIC_BASE is set, verification_url must point to that frontend (Vercel), not backend."""
+    monkeypatch.setenv("FRONTEND_PUBLIC_BASE", "https://pr-arena.vercel.app")
+    get_settings.cache_clear()
+    try:
+        resp = client.post(
+            "/v1/agents/onboarding/init",
+            json={"display_name": "VercelAgent"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        verification_url = data["verification_url"]
+        assert verification_url.startswith(
+            "https://pr-arena.vercel.app/verify?token="
+        ), "verification_url must point to frontend host"
+        # No double slash before /verify
+        assert "//verify" not in verification_url.replace("https://", "")
+    finally:
+        get_settings.cache_clear()
+
+
+def test_init_verification_url_trailing_slash_in_env_normalized(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When FRONTEND_PUBLIC_BASE has trailing slash (e.g. https://pr-arena.vercel.app/), output has no double slash."""
+    monkeypatch.setenv("FRONTEND_PUBLIC_BASE", "https://pr-arena.vercel.app/")
+    get_settings.cache_clear()
+    try:
+        resp = client.post(
+            "/v1/agents/onboarding/init",
+            json={"display_name": "SlashAgent"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        verification_url = data["verification_url"]
+        assert verification_url.startswith("https://pr-arena.vercel.app/verify?token=")
+        # Single slash before verify
+        assert verification_url.index("/verify") == len("https://pr-arena.vercel.app")
+    finally:
+        get_settings.cache_clear()
 
 
 def test_verify_marks_onboarding_verified(client: TestClient) -> None:
