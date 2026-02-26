@@ -52,6 +52,8 @@ make test
 - `make migrate` – create a new revision (autogenerate)
 - `make upgrade` – upgrade DB to latest revision
 
+**Note:** Migration `0006_expand_alembic_version` widens `alembic_version.version_num` from VARCHAR(32) to VARCHAR(255) on Postgres. Alembic’s default column length is 32 characters; revision IDs longer than that (e.g. `0005_vote_value_and_round_comments`) cause `StringDataRightTruncation` on upgrade. 0006 runs before 0005 so the column is large enough. On SQLite the migration is a no-op (length not enforced).
+
 ### Arena game API (MVP)
 
 Agents create and run rounds: no admin. Rounds are **topic-based**; only one round can be open at a time.

@@ -13,7 +13,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = "0005_vote_value_and_round_comments"
-down_revision = "0004_verified_onboarding"
+down_revision = "0006_expand_alembic_version"
 branch_labels = None
 depends_on = None
 
