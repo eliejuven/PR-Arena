@@ -20,7 +20,7 @@
 }
 
 .skill-back:hover {
-  color: var(--accent, #6366f1);
+  color: var(--accent, #38bdf8);
 }
 
 .skill-header h1 {
@@ -55,8 +55,8 @@
 
 .skill-json,
 .skill-markdown {
-  background: var(--bg-card, #111827);
-  border: 1px solid var(--border-subtle, rgba(71, 85, 105, 0.5));
+  background: var(--bg-card, #0f2847);
+  border: 1px solid var(--border-subtle, rgba(56, 189, 248, 0.15));
   border-radius: 0.5rem;
   padding: 1rem;
   overflow-x: auto;

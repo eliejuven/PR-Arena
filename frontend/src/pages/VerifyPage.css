@@ -9,8 +9,8 @@
 }
 
 .verify-card {
-  background: var(--bg-card, #111827);
-  border: 1px solid var(--border-subtle, rgba(71, 85, 105, 0.5));
+  background: var(--bg-card, #0f2847);
+  border: 1px solid var(--border-subtle, rgba(56, 189, 248, 0.15));
   border-radius: 0.75rem;
   padding: 2rem;
   max-width: 440px;
@@ -26,7 +26,7 @@
 }
 
 .verify-back:hover {
-  color: var(--accent, #6366f1);
+  color: var(--accent, #38bdf8);
 }
 
 .verify-card h1 {
@@ -54,14 +54,14 @@
   font-weight: 600;
   border: none;
   border-radius: 0.5rem;
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--accent, #38bdf8) 0%, var(--accent-deep, #0ea5e9) 100%);
+  color: #0a1628;
   cursor: pointer;
-  transition: filter 0.2s ease;
+  transition: box-shadow 0.2s ease;
 }
 
 .verify-btn:hover:not(:disabled) {
-  filter: brightness(1.1);
+  box-shadow: 0 0 24px var(--accent-soft, rgba(56, 189, 248, 0.2));
 }
 
 .verify-btn:disabled {
@@ -72,9 +72,9 @@
 .verify-success {
   margin-top: 1.5rem;
   padding: 1rem;
-  background: var(--success-soft, rgba(34, 197, 94, 0.15));
+  background: var(--success-soft, rgba(45, 212, 191, 0.15));
   border-radius: 0.5rem;
-  color: var(--success, #22c55e);
+  color: var(--success, #2dd4bf);
 }
 
 .verify-success p {
@@ -100,8 +100,8 @@
 .verify-error {
   margin-top: 1rem;
   padding: 1rem;
-  background: var(--error-soft, rgba(239, 68, 68, 0.15));
-  color: var(--error, #ef4444);
+  background: var(--error-soft, rgba(248, 113, 113, 0.15));
+  color: var(--error, #f87171);
   border-radius: 0.5rem;
   font-size: 0.9rem;
 }

@@ -14,10 +14,10 @@
 
 .landing-title {
   font-size: 2.5rem;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: -0.03em;
   margin: 0 0 0.75rem;
-  background: linear-gradient(135deg, #e2e8f0 0%, #94a3b8 100%);
+  background: linear-gradient(135deg, #e0f2fe 0%, #38bdf8 50%, #0ea5e9 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -39,8 +39,8 @@
 }
 
 .card-arena {
-  border-color: var(--accent, #6366f1);
-  background: linear-gradient(135deg, var(--bg-card, #111827) 0%, rgba(99, 102, 241, 0.08) 100%);
+  border-color: var(--accent, #38bdf8);
+  background: linear-gradient(135deg, var(--bg-card, #0f2847) 0%, var(--accent-soft, rgba(56, 189, 248, 0.12)) 100%);
 }
 
 @media (min-width: 700px) {
@@ -56,19 +56,20 @@
 }
 
 .landing-card {
-  background: var(--bg-card, #111827);
-  border: 1px solid var(--border-subtle, rgba(71, 85, 105, 0.5));
+  background: var(--bg-card, #0f2847);
+  border: 1px solid var(--border-subtle, rgba(56, 189, 248, 0.15));
   border-radius: 0.75rem;
   padding: 1.5rem 1.5rem;
   text-decoration: none;
   color: inherit;
   display: block;
-  transition: border-color 0.2s ease, transform 0.2s ease;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 a.landing-card:hover {
-  border-color: var(--accent, #6366f1);
+  border-color: var(--accent, #38bdf8);
   transform: translateY(-2px);
+  box-shadow: 0 0 24px rgba(56, 189, 248, 0.12);
 }
 
 .landing-card h2 {
@@ -92,7 +93,7 @@ a.landing-card:hover {
 .landing-cta {
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--accent, #6366f1);
+  color: var(--accent, #38bdf8);
 }
 
 .landing-steps {
@@ -108,10 +109,11 @@ a.landing-card:hover {
 }
 
 .landing-steps code {
-  background: rgba(15, 23, 42, 0.9);
+  background: var(--bg-input, #0c2139);
   padding: 0.15rem 0.4rem;
   border-radius: 0.25rem;
   font-size: 0.82em;
+  border: 1px solid var(--border-subtle, rgba(56, 189, 248, 0.15));
 }
 
 .landing-note {
@@ -124,13 +126,14 @@ a.landing-card:hover {
   text-align: center;
   margin-top: 3rem;
   padding-top: 2rem;
-  border-top: 1px solid var(--border-subtle, rgba(71, 85, 105, 0.5));
+  border-top: 1px solid var(--border-subtle, rgba(56, 189, 248, 0.15));
   font-size: 0.85rem;
   color: var(--text-muted, #64748b);
 }
 
 .landing-footer code {
-  background: var(--bg-card, #111827);
+  background: var(--bg-card, #0f2847);
   padding: 0.15rem 0.4rem;
   border-radius: 0.25rem;
+  border: 1px solid var(--border-subtle, rgba(56, 189, 248, 0.15));
 }
