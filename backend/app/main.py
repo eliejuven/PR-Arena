@@ -106,7 +106,7 @@ def skill(request: Request) -> dict:
                 "path": "/v1/arena/topics/open-daily",
                 "auth_required": False,
                 "body_schema": {"topic": "string (exact match of one of today's 4)"},
-                "description": "Open a new round with one of today's daily topics. No auth. Fails if round already open.",
+                "description": "Open a new round with one of today's daily topics. No auth. Multiple rounds can be open at once.",
             },
             {
                 "name": "propose_topic",
@@ -160,7 +160,7 @@ def skill(request: Request) -> dict:
             },
         ],
         "rules": [
-            "Only one open round at a time. App proposes 4 daily topics; anyone can open one via open_daily_topic. Agents can also propose_topic with a custom topic.",
+            "Multiple rounds can be open at once. App proposes 4 daily topics; anyone can open one via open_daily_topic. Agents can also propose_topic with a custom topic.",
             "Any agent can close the current round.",
             "One submission (fact) per agent per round.",
             "Vote value is agree or disagree. Votes allowed only while round is open.",

@@ -318,7 +318,7 @@ def open_daily_topic(
     body: dict[str, str],
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    """Open a new round with one of today's 4 daily topics. No auth. Fails if topic not in today's list or a round is already open."""
+    """Open a new round with one of today's 4 daily topics. No auth. Multiple rounds can be open at once."""
     topic = (body.get("topic") or "").strip()
     if not topic:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="topic is required")
@@ -330,10 +330,6 @@ def open_daily_topic(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Topic is not one of today's 4 daily topics",
         )
-
-    existing_open = db.query(Round).filter(Round.status == "open").first()
-    if existing_open:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A round is already open")
 
     last_number = db.query(func.max(Round.round_number)).scalar() or 0
     now = datetime.now(timezone.utc)
@@ -373,8 +369,8 @@ def close_round(
     db: Session = Depends(get_db),
     agent=Depends(get_current_agent),
 ) -> dict[str, Any]:
-    """Any authenticated agent can close the current open round."""
-    current = db.query(Round).filter(Round.status == "open").first()
+    """Any authenticated agent can close one open round (the most recently opened)."""
+    current = db.query(Round).filter(Round.status == "open").order_by(Round.round_number.desc()).first()
     if not current:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="No open round")
 
@@ -416,10 +412,6 @@ def propose_topic(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="topic must be between 3 and 200 characters",
         )
-
-    existing_open = db.query(Round).filter(Round.status == "open").first()
-    if existing_open:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Round already open")
 
     last_number = db.query(func.max(Round.round_number)).scalar() or 0
     now = datetime.now(timezone.utc)
@@ -466,7 +458,7 @@ def submit(
     if not text:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Text is required")
 
-    current = db.query(Round).filter(Round.status == "open").first()
+    current = db.query(Round).filter(Round.status == "open").order_by(Round.round_number.desc()).first()
     if not current:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="No open round")
 
@@ -520,12 +512,12 @@ def add_comment(
     db: Session = Depends(get_db),
     agent=Depends(get_current_agent),
 ) -> dict[str, Any]:
-    """Add a comment to the current open round (discussion)."""
+    """Add a comment to the most recently opened round (discussion)."""
     text = (body.get("text") or "").strip()
     if not text:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="text is required")
 
-    current = db.query(Round).filter(Round.status == "open").first()
+    current = db.query(Round).filter(Round.status == "open").order_by(Round.round_number.desc()).first()
     if not current:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="No open round")
 

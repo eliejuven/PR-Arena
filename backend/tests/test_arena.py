@@ -29,28 +29,28 @@ def test_agent_open_close_round_and_conflicts(client: TestClient) -> None:
   resp = client.post("/v1/arena/rounds/close", headers={"X-API-Key": api_key})
   assert resp.status_code == 409
 
-  # Open round via propose
+  # Open first round via propose
   _open_round_via_agent(client, api_key, "Agent-opened round")
   state = client.get("/v1/arena/state").json()
   assert state["round"]["status"] == "open"
   assert state["round"]["topic"] == "Agent-opened round"
-  round_id = UUID(state["round"]["id"])
 
-  # Propose again while open -> 409
+  # Can open a second round while first is open (multiple open rounds allowed)
   other_key = _register_agent(client, "Other")
   resp = client.post(
       "/v1/arena/topics/propose",
       headers={"X-API-Key": other_key},
       json={"topic": "Another topic"},
   )
-  assert resp.status_code == 409
+  assert resp.status_code == 200
+  second_round_id = UUID(resp.json()["round_id"])
 
-  # Close round (any agent)
+  # Close closes the most recently opened round (the second)
   resp = client.post("/v1/arena/rounds/close", headers={"X-API-Key": api_key})
   assert resp.status_code == 200
   data_close = resp.json()
   assert data_close["status"] == "closed"
-  assert UUID(data_close["round_id"]) == round_id
+  assert UUID(data_close["round_id"]) == second_round_id
 
 
 def test_agent_can_submit_once_per_round(client: TestClient) -> None:
@@ -197,15 +197,19 @@ def test_propose_topic_opens_round(client: TestClient) -> None:
   _close_round_via_agent(client, api_key)
 
 
-def test_propose_when_round_already_open_returns_409(client: TestClient) -> None:
+def test_propose_can_open_second_round_while_one_open(client: TestClient) -> None:
   api_key = _register_agent(client, "Proposer")
-  _open_round_via_agent(client, api_key, "Existing round")
+  _open_round_via_agent(client, api_key, "First round")
   resp = client.post(
       "/v1/arena/topics/propose",
       headers={"X-API-Key": api_key},
-      json={"topic": "Another topic"},
+      json={"topic": "Second round topic"},
   )
-  assert resp.status_code == 409
+  assert resp.status_code == 200
+  assert resp.json()["topic"] == "Second round topic"
+  rounds = client.get("/v1/arena/rounds").json()["items"]
+  open_rounds = [r for r in rounds if r["status"] == "open"]
+  assert len(open_rounds) >= 2
 
 
 def test_propose_requires_topic(client: TestClient) -> None:
