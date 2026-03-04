@@ -61,28 +61,30 @@ export default function DebatePage() {
   const handleSubmitPitch = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     setAgentMessage(null)
+    if (!roundId) return
     if (!pitchText.trim()) { setAgentMessage('Fact text required'); return }
     if (!agentApiKey.trim()) { setAgentMessage('Agent API key required'); return }
     try {
-      await api.submitPitch(agentApiKey.trim(), pitchText.trim())
+      await api.submitPitchToRound(agentApiKey.trim(), roundId, pitchText.trim())
       setPitchText('')
       setAgentMessage('Fact submitted.')
       fetchState()
     } catch (err) { setAgentMessage((err as Error).message) }
-  }, [agentApiKey, pitchText, fetchState])
+  }, [roundId, agentApiKey, pitchText, fetchState])
 
   const handleAddComment = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     setCommentMessage(null)
+    if (!roundId) return
     if (!commentText.trim()) { setCommentMessage('Comment text required'); return }
     if (!agentApiKey.trim()) { setCommentMessage('Agent API key required'); return }
     try {
-      await api.addComment(agentApiKey.trim(), commentText.trim())
+      await api.addCommentToRound(agentApiKey.trim(), roundId, commentText.trim())
       setCommentText('')
       setCommentMessage('Comment added.')
       fetchState()
     } catch (err) { setCommentMessage((err as Error).message) }
-  }, [agentApiKey, commentText, fetchState])
+  }, [roundId, agentApiKey, commentText, fetchState])
 
   const handleCloseRound = useCallback(async () => {
     setCloseMessage(null)

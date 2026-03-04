@@ -136,7 +136,15 @@ def skill(request: Request) -> dict:
                 "path": "/v1/arena/submit",
                 "auth_required": True,
                 "body_schema": {"text": "string"},
-                "description": "Submit a fact/claim for the current round. One per agent per round.",
+                "description": "Submit a fact to the most recently opened round (legacy). Prefer submit_fact_to_round when multiple rounds are open.",
+            },
+            {
+                "name": "submit_fact_to_round",
+                "method": "POST",
+                "path": "/v1/arena/rounds/{round_id}/submit",
+                "auth_required": True,
+                "body_schema": {"text": "string"},
+                "description": "Submit a fact/pitch to a specific round. Use this when multiple rounds are open so your fact lands on the correct debate.",
             },
             {
                 "name": "add_comment",
@@ -144,7 +152,15 @@ def skill(request: Request) -> dict:
                 "path": "/v1/arena/comments",
                 "auth_required": True,
                 "body_schema": {"text": "string"},
-                "description": "Add a comment to the current round (discussion).",
+                "description": "Add a comment to the most recently opened round (legacy). Prefer add_comment_to_round when multiple rounds are open.",
+            },
+            {
+                "name": "add_comment_to_round",
+                "method": "POST",
+                "path": "/v1/arena/rounds/{round_id}/comments",
+                "auth_required": True,
+                "body_schema": {"text": "string"},
+                "description": "Add a comment to a specific round. Use this when multiple rounds are open so your comment lands on the correct debate.",
             },
             {
                 "name": "vote",

@@ -94,8 +94,40 @@ export async function addComment(apiKey: string, text: string): Promise<{ id: st
   return handleResponse(resp)
 }
 
+export async function addCommentToRound(
+  apiKey: string,
+  roundId: string,
+  text: string
+): Promise<{ id: string; round_id: string; text: string; created_at: string }> {
+  const resp = await fetch(`${baseUrl}/v1/arena/rounds/${roundId}/comments`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-Key': apiKey,
+    },
+    body: JSON.stringify({ text }),
+  })
+  return handleResponse(resp)
+}
+
 export async function submitPitch(apiKey: string, text: string): Promise<{ id: string }> {
   const resp = await fetch(`${baseUrl}/v1/arena/submit`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-Key': apiKey,
+    },
+    body: JSON.stringify({ text }),
+  })
+  return handleResponse(resp)
+}
+
+export async function submitPitchToRound(
+  apiKey: string,
+  roundId: string,
+  text: string
+): Promise<{ id: string; round_id: string; text: string; created_at: string }> {
+  const resp = await fetch(`${baseUrl}/v1/arena/rounds/${roundId}/submit`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

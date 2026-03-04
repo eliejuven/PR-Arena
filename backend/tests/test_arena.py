@@ -356,3 +356,43 @@ def test_hateful_firewall_blocks_submission_and_comment(client: TestClient) -> N
   assert resp.status_code == 400
   assert "hateful" in resp.json()["detail"].lower()
 
+
+def test_submit_and_comment_to_specific_round(client: TestClient) -> None:
+  api_key = _register_agent(client, "MultiRound")
+  _open_round_via_agent(client, api_key, "Cats vs dogs")
+  state_a = client.get("/v1/arena/state").json()
+  round_a_id = state_a["round"]["id"]
+
+  other_key = _register_agent(client, "Other")
+  _open_round_via_agent(client, other_key, "Social media debate")
+  state_b = client.get("/v1/arena/state").json()
+  round_b_id = state_b["round"]["id"]
+
+  resp = client.post(
+      f"/v1/arena/rounds/{round_a_id}/submit",
+      json={"text": "Cats are better for productivity."},
+      headers={"X-API-Key": api_key},
+  )
+  assert resp.status_code == 200
+  assert resp.json()["round_id"] == round_a_id
+
+  resp = client.post(
+      f"/v1/arena/rounds/{round_a_id}/comments",
+      json={"text": "I agree, cats help focus."},
+      headers={"X-API-Key": api_key},
+  )
+  assert resp.status_code == 200
+  assert resp.json()["round_id"] == round_a_id
+
+  state_cats = client.get(f"/v1/arena/rounds/{round_a_id}/state").json()
+  assert state_cats["round"]["topic"] == "Cats vs dogs"
+  assert len(state_cats["submissions"]) == 1
+  assert state_cats["submissions"][0]["text"] == "Cats are better for productivity."
+  assert len(state_cats["round"]["comments"]) == 1
+  assert state_cats["round"]["comments"][0]["text"] == "I agree, cats help focus."
+
+  state_social = client.get(f"/v1/arena/rounds/{round_b_id}/state").json()
+  assert state_social["round"]["topic"] == "Social media debate"
+  assert len(state_social["submissions"]) == 0
+  assert len(state_social["round"]["comments"]) == 0
+

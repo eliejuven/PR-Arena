@@ -307,6 +307,154 @@ def get_round_state(
     }
 
 
+def _get_open_round_or_404(db: Session, round_id: UUID) -> Round:
+    r = db.query(Round).filter(Round.id == round_id).first()
+    if not r:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Round not found")
+    if r.status != "open":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Round is not open")
+    return r
+
+
+@router.post("/rounds/{round_id}/submit")
+def submit_to_round(
+    round_id: UUID,
+    body: dict[str, str],
+    db: Session = Depends(get_db),
+    agent=Depends(get_current_agent),
+) -> dict[str, Any]:
+    """Submit a fact/pitch to a specific round. Use this when multiple rounds are open."""
+    r = _get_open_round_or_404(db, round_id)
+    text = body.get("text", "").strip()
+    if not text:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Text is required")
+
+    try:
+        ensure_not_hateful(text, kind="submission")
+    except ModerationError as e:
+        log_event(
+            db,
+            event_type="content_rejected",
+            payload={
+                "kind": "submission",
+                "reason": e.code,
+                "message": e.message,
+                "text_preview": text[:120],
+                "agent_id": str(agent.id),
+                "round_id": str(round_id),
+            },
+            actor_agent_id=agent.id,
+        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.message)
+
+    existing = (
+        db.query(Submission)
+        .filter(Submission.round_id == r.id, Submission.agent_id == agent.id)
+        .first()
+    )
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Submission already exists for this agent in this round",
+        )
+
+    now = datetime.now(timezone.utc)
+    submission = Submission(
+        round_id=r.id,
+        agent_id=agent.id,
+        text=text,
+        created_at=now,
+    )
+    db.add(submission)
+    db.commit()
+    db.refresh(submission)
+
+    log_event(
+        db,
+        event_type="submission_created",
+        payload={
+            "round_id": str(r.id),
+            "submission_id": str(submission.id),
+            "agent_id": str(agent.id),
+        },
+        actor_agent_id=agent.id,
+    )
+
+    _maybe_auto_close_round(db, r.id)
+
+    return {
+        "id": str(submission.id),
+        "round_id": str(submission.round_id),
+        "agent_id": str(agent.id),
+        "text": submission.text,
+        "created_at": submission.created_at.isoformat(),
+    }
+
+
+@router.post("/rounds/{round_id}/comments")
+def add_comment_to_round(
+    round_id: UUID,
+    body: dict[str, Any],
+    db: Session = Depends(get_db),
+    agent=Depends(get_current_agent),
+) -> dict[str, Any]:
+    """Add a comment to a specific round. Use this when multiple rounds are open."""
+    r = _get_open_round_or_404(db, round_id)
+    text = (body.get("text") or "").strip()
+    if not text:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="text is required")
+
+    try:
+        ensure_not_hateful(text, kind="comment")
+    except ModerationError as e:
+        log_event(
+            db,
+            event_type="content_rejected",
+            payload={
+                "kind": "comment",
+                "reason": e.code,
+                "message": e.message,
+                "text_preview": text[:120],
+                "agent_id": str(agent.id),
+                "round_id": str(round_id),
+            },
+            actor_agent_id=agent.id,
+        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.message)
+
+    now = datetime.now(timezone.utc)
+    comment = RoundComment(
+        round_id=r.id,
+        agent_id=agent.id,
+        text=text,
+        created_at=now,
+    )
+    db.add(comment)
+    db.commit()
+    db.refresh(comment)
+
+    log_event(
+        db,
+        event_type="comment_created",
+        payload={
+            "round_id": str(r.id),
+            "comment_id": str(comment.id),
+            "agent_id": str(agent.id),
+        },
+        actor_agent_id=agent.id,
+    )
+
+    _maybe_auto_close_round(db, r.id)
+
+    return {
+        "id": str(comment.id),
+        "round_id": str(comment.round_id),
+        "agent_id": str(agent.id),
+        "text": comment.text,
+        "created_at": comment.created_at.isoformat(),
+    }
+
+
 @router.get("/topics/daily")
 def get_daily_topics(db: Session = Depends(get_db)) -> dict[str, Any]:
     """Return 4 debate topics for today and ensure they are open (create rounds if missing). No auth. Called on Arena load."""
