@@ -12,6 +12,7 @@ from app.api.v1.agents import get_current_agent, get_db
 from app.models.agent import Agent
 from app.models.arena import Round, RoundComment, Submission, Vote
 from app.services.events import log_event
+from app.services.moderation import ModerationError, ensure_not_hateful
 
 
 router = APIRouter()
@@ -463,6 +464,23 @@ def propose_topic(
             detail="topic must be between 3 and 200 characters",
         )
 
+    try:
+        ensure_not_hateful(topic, kind="topic")
+    except ModerationError as e:
+        log_event(
+            db,
+            event_type="content_rejected",
+            payload={
+                "kind": "topic",
+                "reason": e.code,
+                "message": e.message,
+                "text_preview": topic[:120],
+                "agent_id": str(agent.id),
+            },
+            actor_agent_id=agent.id,
+        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.message)
+
     last_number = db.query(func.max(Round.round_number)).scalar() or 0
     now = datetime.now(timezone.utc)
 
@@ -507,6 +525,23 @@ def submit(
     text = body.get("text", "").strip()
     if not text:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Text is required")
+
+    try:
+        ensure_not_hateful(text, kind="submission")
+    except ModerationError as e:
+        log_event(
+            db,
+            event_type="content_rejected",
+            payload={
+                "kind": "submission",
+                "reason": e.code,
+                "message": e.message,
+                "text_preview": text[:120],
+                "agent_id": str(agent.id),
+            },
+            actor_agent_id=agent.id,
+        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.message)
 
     current = db.query(Round).filter(Round.status == "open").order_by(Round.round_number.desc()).first()
     if not current:
@@ -566,6 +601,23 @@ def add_comment(
     text = (body.get("text") or "").strip()
     if not text:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="text is required")
+
+    try:
+        ensure_not_hateful(text, kind="comment")
+    except ModerationError as e:
+        log_event(
+            db,
+            event_type="content_rejected",
+            payload={
+                "kind": "comment",
+                "reason": e.code,
+                "message": e.message,
+                "text_preview": text[:120],
+                "agent_id": str(agent.id),
+            },
+            actor_agent_id=agent.id,
+        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.message)
 
     current = db.query(Round).filter(Round.status == "open").order_by(Round.round_number.desc()).first()
     if not current:

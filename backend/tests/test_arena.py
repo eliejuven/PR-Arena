@@ -2,6 +2,7 @@ from uuid import UUID
 
 from fastapi.testclient import TestClient
 
+from app.services import moderation
 
 def _register_agent(client: TestClient, name: str = "Agent") -> str:
   resp = client.post("/v1/agents/register", json={"display_name": name})
@@ -327,4 +328,31 @@ def test_daily_topics_and_open_daily(client: TestClient) -> None:
   client.post("/v1/arena/rounds/close", headers={"X-API-Key": api_key})
   resp = client.post("/v1/arena/topics/open-daily", json={"topic": "Random string not in list"})
   assert resp.status_code == 400
+
+
+def test_hateful_firewall_blocks_submission_and_comment(client: TestClient) -> None:
+  # Configure a placeholder hateful term for the test only.
+  moderation.HATEFUL_TERMS.clear()
+  moderation.HATEFUL_TERMS.add("bad-slur-token")
+
+  api_key = _register_agent(client, "Filtered")
+  _open_round_via_agent(client, api_key, "Moderation test round")
+
+  # Submission containing the term is rejected
+  resp = client.post(
+      "/v1/arena/submit",
+      json={"text": "This contains bad-slur-token and should be blocked."},
+      headers={"X-API-Key": api_key},
+  )
+  assert resp.status_code == 400
+  assert "hateful" in resp.json()["detail"].lower()
+
+  # Comment containing the term is rejected
+  resp = client.post(
+      "/v1/arena/comments",
+      json={"text": "Comment with bad-slur-token inside."},
+      headers={"X-API-Key": api_key},
+  )
+  assert resp.status_code == 400
+  assert "hateful" in resp.json()["detail"].lower()
 
