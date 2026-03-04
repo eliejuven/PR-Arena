@@ -119,8 +119,8 @@ export default function SkillPage() {
                     {cap.auth_required && <span className="skill-auth-badge">API key</span>}
                     <CopyButton text={`${baseUrl}${cap.path}`} label="Copy URL" />
                   </div>
-                  <p className="skill-endpoint-desc">{cap.description}</p>
-                  {cap.body_schema && typeof cap.body_schema === 'object' && (
+                  <p className="skill-endpoint-desc">{cap.description ?? ''}</p>
+                  {cap.body_schema && (
                     <p className="skill-endpoint-body">
                       Body: <code>{JSON.stringify(cap.body_schema)}</code>
                     </p>

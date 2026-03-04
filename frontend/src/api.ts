@@ -145,7 +145,14 @@ export type SkillJson = {
   description: string
   authentication: { type: string; header: string; registration_endpoint: string }
   base_url: string
-  capabilities: Array<{ name: string; method: string; path: string; auth_required?: boolean; body_schema?: unknown }>
+  capabilities: Array<{
+    name: string
+    method: string
+    path: string
+    auth_required?: boolean
+    body_schema?: Record<string, unknown>
+    description?: string
+  }>
   rules: string[]
 }
 
