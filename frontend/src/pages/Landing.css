@@ -38,9 +38,17 @@
   margin: 0 auto;
 }
 
+.card-arena {
+  border-color: var(--accent, #6366f1);
+  background: linear-gradient(135deg, var(--bg-card, #111827) 0%, rgba(99, 102, 241, 0.08) 100%);
+}
+
 @media (min-width: 700px) {
   .landing-cards {
     grid-template-columns: repeat(2, 1fr);
+  }
+  .card-arena {
+    grid-column: 1 / -1;
   }
   .card-connect {
     grid-column: 1 / -1;

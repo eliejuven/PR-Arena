@@ -587,3 +587,123 @@ body {
   margin: -0.2rem 0 0.6rem;
   line-height: 1.4;
 }
+
+/* --- Arena list page --- */
+.arena-list-root .app-header { text-align: left; }
+.arena-list-main { max-width: 720px; }
+.arena-search-section {
+  margin-bottom: 1.5rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.arena-search-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.arena-search-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+.arena-search-input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+.arena-emoji-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+.arena-emoji-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-right: 0.25rem;
+}
+.arena-emoji-btn {
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+}
+.arena-emoji-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text-primary);
+}
+.arena-emoji-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.arena-rounds-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.arena-round-card {
+  border-radius: var(--radius);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  transition: border-color var(--transition), background var(--transition);
+}
+.arena-round-card:hover {
+  border-color: var(--accent);
+  background: var(--bg-card-hover);
+}
+.arena-round-link {
+  display: block;
+  padding: 1rem 1.25rem;
+  text-decoration: none;
+  color: inherit;
+}
+.arena-round-topic {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 0.4rem;
+}
+.arena-round-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+.arena-round-contributions {
+  color: var(--accent);
+  font-weight: 500;
+}
+.arena-round-date {
+  margin-left: auto;
+}
+
+/* --- Debate page (one page per debate) --- */
+.debate-page-root .app-header { text-align: left; }
+.debate-main {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+}
+@media (min-width: 900px) {
+  .debate-main {
+    grid-template-columns: 1fr 340px;
+  }
+}
+.debate-topic-section {
+  min-width: 0;
+}

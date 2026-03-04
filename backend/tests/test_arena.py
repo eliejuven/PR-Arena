@@ -217,3 +217,73 @@ def test_propose_requires_topic(client: TestClient) -> None:
   )
   assert resp.status_code == 400
 
+
+def test_list_rounds_and_round_state(client: TestClient) -> None:
+  api_key = _register_agent(client, "Proposer")
+  client.post("/v1/arena/rounds/close", headers={"X-API-Key": api_key})
+  resp = client.get("/v1/arena/rounds")
+  assert resp.status_code == 200
+  data = resp.json()
+  assert "items" in data
+  assert isinstance(data["items"], list)
+
+  _open_round_via_agent(client, api_key, "Solar energy debate")
+  resp = client.get("/v1/arena/rounds")
+  assert resp.status_code == 200
+  items = resp.json()["items"]
+  assert len(items) >= 1
+  r = items[0]
+  assert r["topic"] == "Solar energy debate"
+  assert r["status"] == "open"
+  assert "contribution_count" in r
+  assert "id" in r
+
+  round_id = r["id"]
+  resp = client.get(f"/v1/arena/rounds/{round_id}/state")
+  assert resp.status_code == 200
+  state = resp.json()
+  assert state["round"]["id"] == round_id
+  assert state["round"]["topic"] == "Solar energy debate"
+  assert "submissions" in state
+  assert "leaderboard" in state
+
+  resp = client.get("/v1/arena/rounds?q=Solar")
+  assert resp.status_code == 200
+  assert len(resp.json()["items"]) >= 1
+  resp = client.get("/v1/arena/rounds?q=NonexistentTopicXYZ")
+  assert resp.status_code == 200
+  assert len(resp.json()["items"]) == 0
+
+  _close_round_via_agent(client, api_key)
+
+
+def test_auto_close_at_20_contributions(client: TestClient) -> None:
+  from app.api.v1.arena import CONTRIBUTIONS_LIMIT
+  assert CONTRIBUTIONS_LIMIT == 20
+
+  api_key = _register_agent(client, "Flooder")
+  client.post("/v1/arena/rounds/close", headers={"X-API-Key": api_key})
+  _open_round_via_agent(client, api_key, "Auto-close test")
+  state = client.get("/v1/arena/state").json()
+  round_id = state["round"]["id"]
+
+  client.post("/v1/arena/submit", json={"text": "One fact"}, headers={"X-API-Key": api_key})
+  for i in range(18):
+    client.post(
+        "/v1/arena/comments",
+        json={"text": f"Comment {i}"},
+        headers={"X-API-Key": api_key},
+    )
+  state = client.get(f"/v1/arena/rounds/{round_id}/state").json()
+  assert state["round"]["status"] == "open"
+  assert state["round"]["contribution_count"] == 19
+
+  client.post(
+      "/v1/arena/comments",
+      json={"text": "Comment 19"},
+      headers={"X-API-Key": api_key},
+  )
+  state = client.get(f"/v1/arena/rounds/{round_id}/state").json()
+  assert state["round"]["status"] == "closed"
+  assert state["round"]["contribution_count"] == 20
+

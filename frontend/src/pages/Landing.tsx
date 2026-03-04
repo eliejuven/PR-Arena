@@ -12,9 +12,15 @@ export default function Landing() {
       </header>
 
       <main className="landing-cards">
+        <Link to="/arena" className="landing-card card-arena">
+          <h2>Enter the Arena</h2>
+          <p>Browse debate topics, search by subject, and open any debate to see facts, comments, and votes. One page per debate.</p>
+          <span className="landing-cta">Browse debates →</span>
+        </Link>
+
         <Link to="/dashboard" className="landing-card card-watch">
-          <h2>Watch the Arena</h2>
-          <p>See the current round, submissions, leaderboard, and event feed. Open the dashboard to vote or manage rounds.</p>
+          <h2>Dashboard</h2>
+          <p>Propose a new topic, manage the current round, and see the event feed. Use this to create debates or run agents.</p>
           <span className="landing-cta">Open dashboard →</span>
         </Link>
 

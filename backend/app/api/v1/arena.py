@@ -1,8 +1,11 @@
 import uuid
 from datetime import datetime, timezone
 from typing import Any, List, Optional
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
@@ -13,6 +16,27 @@ from app.services.events import log_event
 
 
 router = APIRouter()
+
+CONTRIBUTIONS_LIMIT = 20  # Auto-close round when facts + comments reach this
+
+
+def _contribution_count(db: Session, round_id: UUID) -> int:
+    sub_count = db.query(func.count(Submission.id)).filter(Submission.round_id == round_id).scalar() or 0
+    com_count = db.query(func.count(RoundComment.id)).filter(RoundComment.round_id == round_id).scalar() or 0
+    return int(sub_count) + int(com_count)
+
+
+def _maybe_auto_close_round(db: Session, round_id: UUID) -> None:
+    r = db.query(Round).filter(Round.id == round_id).first()
+    if not r or r.status != "open":
+        return
+    if _contribution_count(db, round_id) >= CONTRIBUTIONS_LIMIT:
+        now = datetime.now(timezone.utc)
+        r.status = "closed"
+        r.closed_at = now
+        db.add(r)
+        db.commit()
+        log_event(db, event_type="round_closed", payload={"round_id": str(round_id), "round_number": r.round_number, "reason": "auto_contributions_limit"})
 
 
 @router.get("/state")
@@ -111,6 +135,129 @@ def get_state(db: Session = Depends(get_db)) -> dict[str, Any]:
                 "score": int(score),
             }
         )
+
+    return {
+        "round": round_payload,
+        "submissions": submissions_payload,
+        "leaderboard": leaderboard,
+    }
+
+
+def _round_to_list_item(db: Session, r: Round) -> dict[str, Any]:
+    proposer_name: Optional[str] = None
+    if r.proposer_agent_id:
+        proposer = db.query(Agent).filter(Agent.id == r.proposer_agent_id).first()
+        proposer_name = proposer.display_name if proposer else None
+    contrib = _contribution_count(db, r.id)
+    return {
+        "id": str(r.id),
+        "round_number": r.round_number,
+        "status": r.status,
+        "topic": r.topic,
+        "proposer_agent_id": str(r.proposer_agent_id) if r.proposer_agent_id else None,
+        "proposer_agent_name": proposer_name,
+        "opened_at": r.opened_at.isoformat(),
+        "closed_at": r.closed_at.isoformat() if r.closed_at else None,
+        "contribution_count": contrib,
+    }
+
+
+@router.get("/rounds")
+def list_rounds(
+    q: Optional[str] = Query(None, description="Search by topic (case-insensitive substring)"),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """List all rounds (debates), optionally filtered by topic search. Newest first."""
+    query = db.query(Round).order_by(Round.round_number.desc())
+    if q and q.strip():
+        search = f"%{q.strip()}%"
+        query = query.filter(Round.topic.ilike(search))
+    rounds_list = query.all()
+    items = [_round_to_list_item(db, r) for r in rounds_list]
+    return {"items": items}
+
+
+@router.get("/rounds/{round_id}/state")
+def get_round_state(
+    round_id: UUID,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Get state for a single round (one debate page): round info, submissions, comments, leaderboard for that round."""
+    r = db.query(Round).filter(Round.id == round_id).first()
+    if not r:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Round not found")
+
+    proposer_name: Optional[str] = None
+    if r.proposer_agent_id:
+        proposer = db.query(Agent).filter(Agent.id == r.proposer_agent_id).first()
+        proposer_name = proposer.display_name if proposer else None
+
+    comment_rows = (
+        db.query(RoundComment, Agent.display_name)
+        .join(Agent, RoundComment.agent_id == Agent.id)
+        .filter(RoundComment.round_id == r.id)
+        .order_by(RoundComment.created_at.asc())
+        .all()
+    )
+    comments_payload = [
+        {"id": str(c.id), "agent_id": str(c.agent_id), "agent_name": name, "text": c.text, "created_at": c.created_at.isoformat()}
+        for c, name in comment_rows
+    ]
+
+    round_payload = {
+        "id": str(r.id),
+        "round_number": r.round_number,
+        "status": r.status,
+        "topic": r.topic,
+        "proposer_agent_id": str(r.proposer_agent_id) if r.proposer_agent_id else None,
+        "proposer_agent_name": proposer_name,
+        "opened_at": r.opened_at.isoformat(),
+        "closed_at": r.closed_at.isoformat() if r.closed_at else None,
+        "comments": comments_payload,
+        "contribution_count": _contribution_count(db, r.id),
+    }
+
+    rows = (
+        db.query(
+            Submission,
+            Agent.display_name,
+            func.sum(case((Vote.value == "agree", 1), else_=0)).label("agrees"),
+            func.sum(case((Vote.value == "disagree", 1), else_=0)).label("disagrees"),
+        )
+        .join(Agent, Submission.agent_id == Agent.id)
+        .outerjoin(Vote, Vote.submission_id == Submission.id)
+        .filter(Submission.round_id == r.id)
+        .group_by(Submission.id, Agent.display_name)
+        .order_by(Submission.created_at.asc())
+        .all()
+    )
+    submissions_payload = [
+        {
+            "id": str(sub.id),
+            "agent_id": str(sub.agent_id),
+            "agent_name": display_name,
+            "text": sub.text,
+            "agrees": int(agrees or 0),
+            "disagrees": int(disagrees or 0),
+            "created_at": sub.created_at.isoformat(),
+        }
+        for sub, display_name, agrees, disagrees in rows
+    ]
+
+    lb_rows = (
+        db.query(
+            Agent.id,
+            Agent.display_name,
+            func.coalesce(func.sum(case((Vote.value == "agree", 1), else_=0)), 0).label("score"),
+        )
+        .join(Submission, Submission.agent_id == Agent.id)
+        .outerjoin(Vote, Vote.submission_id == Submission.id)
+        .filter(Submission.round_id == r.id)
+        .group_by(Agent.id, Agent.display_name)
+        .order_by(func.coalesce(func.sum(case((Vote.value == "agree", 1), else_=0)), 0).desc(), Agent.display_name.asc())
+        .all()
+    )
+    leaderboard = [{"agent_id": str(aid), "agent_name": name, "score": int(score)} for aid, name, score in lb_rows]
 
     return {
         "round": round_payload,
@@ -254,6 +401,8 @@ def submit(
         actor_agent_id=agent.id,
     )
 
+    _maybe_auto_close_round(db, current.id)
+
     return {
         "id": str(submission.id),
         "round_id": str(submission.round_id),
@@ -299,6 +448,8 @@ def add_comment(
         },
         actor_agent_id=agent.id,
     )
+
+    _maybe_auto_close_round(db, current.id)
 
     return {
         "id": str(comment.id),

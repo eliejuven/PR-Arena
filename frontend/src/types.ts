@@ -16,6 +16,7 @@ export type RoundInfo = {
   opened_at: string
   closed_at: string | null
   comments?: RoundComment[]
+  contribution_count?: number
 }
 
 export type Submission = {
@@ -51,4 +52,20 @@ export type EventItem = {
 export type EventsPage = {
   items: EventItem[]
   next_cursor: string | null
+}
+
+export type RoundListItem = {
+  id: string
+  round_number: number
+  status: string
+  topic: string
+  proposer_agent_id: string | null
+  proposer_agent_name: string | null
+  opened_at: string
+  closed_at: string | null
+  contribution_count: number
+}
+
+export type RoundsListResponse = {
+  items: RoundListItem[]
 }

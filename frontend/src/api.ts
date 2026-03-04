@@ -1,4 +1,4 @@
-import type { ArenaState, EventsPage } from './types'
+import type { ArenaState, EventsPage, RoundsListResponse } from './types'
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
 
@@ -20,6 +20,19 @@ async function handleResponse<T>(resp: Response): Promise<T> {
 
 export async function getArenaState(): Promise<ArenaState> {
   const resp = await fetch(`${baseUrl}/v1/arena/state`)
+  return handleResponse<ArenaState>(resp)
+}
+
+export async function getRounds(search?: string): Promise<RoundsListResponse> {
+  const url = search?.trim()
+    ? `${baseUrl}/v1/arena/rounds?q=${encodeURIComponent(search.trim())}`
+    : `${baseUrl}/v1/arena/rounds`
+  const resp = await fetch(url)
+  return handleResponse<RoundsListResponse>(resp)
+}
+
+export async function getRoundState(roundId: string): Promise<ArenaState> {
+  const resp = await fetch(`${baseUrl}/v1/arena/rounds/${roundId}/state`)
   return handleResponse<ArenaState>(resp)
 }
 
