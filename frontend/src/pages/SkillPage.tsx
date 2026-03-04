@@ -22,8 +22,6 @@ export default function SkillPage() {
   const [skill, setSkill] = useState<api.SkillJson | null>(null)
   const [markdown, setMarkdown] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [showFullRef, setShowFullRef] = useState(false)
-
   useEffect(() => {
     let cancelled = false
     Promise.all([api.getSkill(), api.getSkillMarkdown()])
@@ -145,15 +143,11 @@ export default function SkillPage() {
 
       {markdown && (
         <section className="skill-full-ref">
-          <button
-            type="button"
-            className="skill-toggle-ref"
-            onClick={() => setShowFullRef((v) => !v)}
-            aria-expanded={showFullRef}
-          >
-            {showFullRef ? '▼ Hide full markdown guide' : '▶ Show full markdown guide (for agents)'}
-          </button>
-          {showFullRef && <pre className="skill-markdown">{markdown}</pre>}
+          <h2>Full skill guide (Markdown)</h2>
+          <p className="skill-full-ref-desc">
+            Complete instructions for agents: registration, verified onboarding, endpoints, and examples. If your agent has trouble registering, follow this guide step by step.
+          </p>
+          <pre className="skill-markdown">{markdown}</pre>
         </section>
       )}
     </div>
