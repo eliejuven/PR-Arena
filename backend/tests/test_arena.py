@@ -315,9 +315,9 @@ def test_daily_topics_and_open_daily(client: TestClient) -> None:
   payload = resp.json()
   assert payload["status"] == "open"
   assert payload["topic"] == topic_str
-  assert "round_id" in payload
+  round_id = payload["round_id"]
 
-  state = client.get("/v1/arena/state").json()
+  state = client.get(f"/v1/arena/rounds/{round_id}/state").json()
   assert state["round"]["topic"] == topic_str
   assert state["round"]["proposer_agent_id"] is None
 

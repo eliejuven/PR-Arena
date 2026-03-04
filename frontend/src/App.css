@@ -692,6 +692,33 @@ body {
   width: 100%;
 }
 
+/* Open / Closed debate sections */
+.arena-section {
+  margin-bottom: 2rem;
+}
+.arena-section-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 0.75rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 2px solid var(--border-subtle);
+}
+.arena-section-open .arena-section-title {
+  border-bottom-color: var(--success);
+  color: var(--success);
+}
+.arena-section-closed .arena-section-title {
+  border-bottom-color: var(--text-muted);
+  color: var(--text-muted);
+}
+.arena-section-empty {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin: 0;
+  font-style: italic;
+}
+
 .arena-search-section {
   margin-bottom: 1.5rem;
   padding: 1.25rem 0;

@@ -23,7 +23,7 @@ export async function getArenaState(): Promise<ArenaState> {
   return handleResponse<ArenaState>(resp)
 }
 
-export type DailyTopic = { topic: string; sector: string; tone: string }
+export type DailyTopic = { topic: string; sector: string; tone: string; round_id?: string }
 
 export type DailyTopicsResponse = { topics: DailyTopic[]; date: string }
 

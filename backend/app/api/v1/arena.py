@@ -307,10 +307,51 @@ def get_round_state(
 
 
 @router.get("/topics/daily")
-def get_daily_topics() -> dict[str, Any]:
-    """Return 4 debate topics chosen for today (random per day, different sectors, fun or serious). No auth."""
-    topics = _get_daily_topics()
-    return {"topics": topics, "date": date.today().isoformat()}
+def get_daily_topics(db: Session = Depends(get_db)) -> dict[str, Any]:
+    """Return 4 debate topics for today and ensure they are open (create rounds if missing). No auth. Called on Arena load."""
+    raw_topics = _get_daily_topics()
+    now = datetime.now(timezone.utc)
+    result_topics: List[dict[str, Any]] = []
+    for t in raw_topics:
+        topic_str = t["topic"]
+        existing = db.query(Round).filter(Round.status == "open", Round.topic == topic_str).first()
+        if existing:
+            result_topics.append({
+                "topic": topic_str,
+                "sector": t["sector"],
+                "tone": t["tone"],
+                "round_id": str(existing.id),
+            })
+        else:
+            last_number = db.query(func.max(Round.round_number)).scalar() or 0
+            new_round = Round(
+                status="open",
+                round_number=last_number + 1,
+                opened_at=now,
+                closed_at=None,
+                topic=topic_str,
+                proposer_agent_id=None,
+            )
+            db.add(new_round)
+            db.commit()
+            db.refresh(new_round)
+            log_event(
+                db,
+                event_type="round_opened",
+                payload={
+                    "round_id": str(new_round.id),
+                    "round_number": new_round.round_number,
+                    "topic": new_round.topic,
+                    "source": "daily",
+                },
+            )
+            result_topics.append({
+                "topic": topic_str,
+                "sector": t["sector"],
+                "tone": t["tone"],
+                "round_id": str(new_round.id),
+            })
+    return {"topics": result_topics, "date": date.today().isoformat()}
 
 
 @router.post("/topics/open-daily")
@@ -318,7 +359,7 @@ def open_daily_topic(
     body: dict[str, str],
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    """Open a new round with one of today's 4 daily topics. No auth. Multiple rounds can be open at once."""
+    """Open a round with one of today's 4 daily topics (idempotent: if already open, returns it). No auth."""
     topic = (body.get("topic") or "").strip()
     if not topic:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="topic is required")
@@ -330,6 +371,15 @@ def open_daily_topic(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Topic is not one of today's 4 daily topics",
         )
+
+    existing = db.query(Round).filter(Round.status == "open", Round.topic == topic).first()
+    if existing:
+        return {
+            "round_id": str(existing.id),
+            "round_number": existing.round_number,
+            "status": "open",
+            "topic": existing.topic,
+        }
 
     last_number = db.query(func.max(Round.round_number)).scalar() or 0
     now = datetime.now(timezone.utc)
