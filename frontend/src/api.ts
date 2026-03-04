@@ -23,6 +23,26 @@ export async function getArenaState(): Promise<ArenaState> {
   return handleResponse<ArenaState>(resp)
 }
 
+export type DailyTopic = { topic: string; sector: string; tone: string }
+
+export type DailyTopicsResponse = { topics: DailyTopic[]; date: string }
+
+export async function getDailyTopics(): Promise<DailyTopicsResponse> {
+  const resp = await fetch(`${baseUrl}/v1/arena/topics/daily`)
+  return handleResponse<DailyTopicsResponse>(resp)
+}
+
+export async function openDailyTopic(
+  topic: string
+): Promise<{ round_id: string; round_number: number; status: string; topic: string }> {
+  const resp = await fetch(`${baseUrl}/v1/arena/topics/open-daily`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ topic }),
+  })
+  return handleResponse(resp)
+}
+
 export async function getRounds(search?: string): Promise<RoundsListResponse> {
   const url = search?.trim()
     ? `${baseUrl}/v1/arena/rounds?q=${encodeURIComponent(search.trim())}`

@@ -1,78 +1,335 @@
 .skill-page {
   min-height: 100vh;
-  background: var(--bg-deep, #0a0e17);
-  color: var(--text-primary, #f1f5f9);
+  background: var(--bg-deep, #0a1628);
+  color: var(--text-primary, #f0f9ff);
   padding: 2rem 1.25rem 3rem;
-  max-width: 900px;
+  max-width: 720px;
   margin: 0 auto;
 }
 
-.skill-header {
+.skill-loading-wrap {
+  padding: 3rem 0;
+  text-align: center;
+}
+
+.skill-loading {
+  color: var(--text-muted, #7dd3fc);
+  margin: 0;
+}
+
+/* Hero */
+.skill-hero {
   margin-bottom: 2rem;
+  text-align: center;
 }
 
 .skill-back {
   display: inline-block;
   font-size: 0.9rem;
-  color: var(--text-secondary, #94a3b8);
-  margin-bottom: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary, #bae6fd);
+  margin-bottom: 1rem;
   text-decoration: none;
+  transition: color 0.2s ease;
 }
 
 .skill-back:hover {
   color: var(--accent, #38bdf8);
 }
 
-.skill-header h1 {
-  font-size: 1.75rem;
-  margin: 0 0 0.35rem;
+.skill-hero h1 {
+  font-size: 1.85rem;
+  font-weight: 800;
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #e0f2fe 0%, #38bdf8 50%, #0ea5e9 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-.skill-desc {
-  font-size: 0.95rem;
-  color: var(--text-secondary, #94a3b8);
+.skill-tagline {
+  font-size: 1rem;
+  color: var(--text-secondary, #bae6fd);
+  line-height: 1.5;
   margin: 0;
+  max-width: 540px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
+/* Error */
 .skill-error {
-  padding: 1rem;
-  background: var(--error-soft, rgba(239, 68, 68, 0.15));
-  color: var(--error, #ef4444);
+  padding: 1rem 1.25rem;
+  background: var(--error-soft, rgba(248, 113, 113, 0.15));
+  color: var(--error, #f87171);
   border-radius: 0.5rem;
   margin-bottom: 1.5rem;
+  border: 1px solid rgba(248, 113, 113, 0.25);
 }
 
-.skill-section {
+/* Quick start */
+.skill-quickstart {
   margin-bottom: 2rem;
 }
 
-.skill-section h2 {
-  font-size: 1rem;
-  font-weight: 600;
-  margin: 0 0 0.5rem;
-  color: var(--text-secondary, #94a3b8);
+.skill-quickstart h2,
+.skill-api-ref h2,
+.skill-rules h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 0.75rem;
 }
 
-.skill-json,
-.skill-markdown {
+.skill-steps {
+  margin: 0;
+  padding-left: 1.5rem;
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
+
+.skill-steps li {
+  margin-bottom: 0.75rem;
+}
+
+.skill-steps li:last-child {
+  margin-bottom: 0;
+}
+
+.skill-steps code {
+  background: var(--bg-input, #0c2139);
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+  font-size: 0.85em;
+  border: 1px solid var(--border-subtle, rgba(56, 189, 248, 0.15));
+}
+
+/* Cards row */
+.skill-cards-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 520px) {
+  .skill-cards-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.skill-card {
+  background: var(--bg-card, #0f2847);
+  border: 1px solid var(--border-subtle, rgba(56, 189, 248, 0.15));
+  border-radius: 0.75rem;
+  padding: 1.25rem 1.35rem;
+}
+
+.skill-card h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent, #38bdf8);
+  margin: 0 0 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.skill-card-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted, #7dd3fc);
+  margin: 0 0 0.75rem;
+  line-height: 1.4;
+}
+
+.skill-card-value-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.skill-card-value {
+  font-size: 0.9rem;
+  background: var(--bg-input, #0c2139);
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.35rem;
+  border: 1px solid var(--border-subtle);
+  word-break: break-all;
+  flex: 1;
+  min-width: 0;
+}
+
+.skill-card-meta {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0.75rem 0 0;
+}
+
+.skill-card-meta code {
+  background: var(--bg-input);
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+}
+
+.skill-copy-btn {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 0.35rem;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft, rgba(56, 189, 248, 0.15));
+  color: var(--accent);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.skill-copy-btn:hover {
+  background: var(--accent);
+  color: #0a1628;
+}
+
+/* API reference */
+.skill-api-ref {
+  margin-bottom: 2rem;
+}
+
+.skill-api-desc {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin: 0 0 1rem;
+}
+
+.skill-endpoints {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.skill-endpoint {
   background: var(--bg-card, #0f2847);
   border: 1px solid var(--border-subtle, rgba(56, 189, 248, 0.15));
   border-radius: 0.5rem;
-  padding: 1rem;
+  padding: 1rem 1.2rem;
+}
+
+.skill-endpoint-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.skill-method {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.2rem 0.45rem;
+  border-radius: 0.25rem;
+  text-transform: uppercase;
+}
+
+.skill-method-get {
+  background: rgba(45, 212, 191, 0.2);
+  color: var(--success, #2dd4bf);
+}
+
+.skill-method-post {
+  background: var(--accent-soft, rgba(56, 189, 248, 0.2));
+  color: var(--accent, #38bdf8);
+}
+
+.skill-path {
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.skill-auth-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.2);
+  color: var(--warn, #fbbf24);
+}
+
+.skill-endpoint-head .skill-copy-btn {
+  margin-left: auto;
+}
+
+.skill-endpoint-desc {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.skill-endpoint-body {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0.5rem 0 0;
+}
+
+.skill-endpoint-body code {
+  background: var(--bg-input);
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+}
+
+/* Rules */
+.skill-rules {
+  margin-bottom: 2rem;
+}
+
+.skill-rules ul {
+  margin: 0;
+  padding-left: 1.35rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.skill-rules li {
+  margin-bottom: 0.4rem;
+}
+
+/* Full markdown reference */
+.skill-full-ref {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.skill-toggle-ref {
+  width: 100%;
+  padding: 0.65rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.skill-toggle-ref:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.skill-markdown {
+  margin: 1rem 0 0;
+  padding: 1.25rem;
+  background: var(--bg-input, #0c2139);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.5rem;
   overflow-x: auto;
   font-size: 0.8rem;
-  line-height: 1.5;
+  line-height: 1.55;
   white-space: pre-wrap;
   word-break: break-word;
-  margin: 0 0 0.5rem;
-}
-
-.skill-meta {
-  font-size: 0.85rem;
-  color: var(--text-muted, #64748b);
-  margin: 0;
-}
-
-.skill-loading {
-  color: var(--text-muted, #64748b);
+  color: var(--text-secondary);
 }

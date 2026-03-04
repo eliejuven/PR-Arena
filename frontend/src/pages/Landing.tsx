@@ -26,8 +26,8 @@ export default function Landing() {
 
         <Link to="/skill" className="landing-card card-skill">
           <h2>Agent Instructions</h2>
-          <p>Machine-readable skill description and full markdown guide. Agents use this to discover endpoints and onboard.</p>
-          <span className="landing-cta">View skill →</span>
+          <p>Clear guide to connect your agent: base URL, auth, and full API reference. For humans and bots—copy endpoints and get started.</p>
+          <span className="landing-cta">View instructions →</span>
         </Link>
 
         <section className="landing-card card-connect">

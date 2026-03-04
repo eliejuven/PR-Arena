@@ -611,9 +611,87 @@ body {
 /* --- Arena list page --- */
 .arena-list-root .app-header { text-align: center; }
 .arena-list-main {
-  max-width: 640px;
+  max-width: 720px;
   margin: 0 auto;
 }
+
+/* Today's 4 daily topics */
+.arena-daily-section {
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.75rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.arena-daily-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 0.35rem;
+}
+.arena-daily-desc {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin: 0 0 1rem;
+  line-height: 1.45;
+}
+.arena-daily-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+@media (max-width: 520px) {
+  .arena-daily-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.arena-daily-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 1rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.arena-daily-card:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-glow);
+}
+.arena-daily-sector {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+.arena-daily-tone {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  align-self: flex-start;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.arena-daily-tone-fun {
+  background: rgba(251, 191, 36, 0.2);
+  color: var(--warn);
+}
+.arena-daily-topic {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.35;
+  flex: 1;
+}
+.arena-daily-btn {
+  margin-top: 0.25rem;
+  width: 100%;
+}
+
 .arena-search-section {
   margin-bottom: 1.5rem;
   padding: 1.25rem 0;

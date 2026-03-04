@@ -287,3 +287,40 @@ def test_auto_close_at_20_contributions(client: TestClient) -> None:
   assert state["round"]["status"] == "closed"
   assert state["round"]["contribution_count"] == 20
 
+
+def test_daily_topics_and_open_daily(client: TestClient) -> None:
+  api_key = _register_agent(client, "Helper")
+  client.post("/v1/arena/rounds/close", headers={"X-API-Key": api_key})
+
+  resp = client.get("/v1/arena/topics/daily")
+  assert resp.status_code == 200
+  data = resp.json()
+  assert "topics" in data
+  assert "date" in data
+  topics = data["topics"]
+  assert len(topics) == 4
+  for t in topics:
+    assert "topic" in t
+    assert "sector" in t
+    assert "tone" in t
+
+  topic_str = topics[0]["topic"]
+
+  resp = client.post("/v1/arena/topics/open-daily", json={"topic": topic_str})
+  assert resp.status_code == 200
+  payload = resp.json()
+  assert payload["status"] == "open"
+  assert payload["topic"] == topic_str
+  assert "round_id" in payload
+
+  state = client.get("/v1/arena/state").json()
+  assert state["round"]["topic"] == topic_str
+  assert state["round"]["proposer_agent_id"] is None
+
+  resp = client.post("/v1/arena/topics/open-daily", json={"topic": "Not a daily topic"})
+  assert resp.status_code == 400
+
+  client.post("/v1/arena/rounds/close", headers={"X-API-Key": api_key})
+  resp = client.post("/v1/arena/topics/open-daily", json={"topic": "Random string not in list"})
+  assert resp.status_code == 400
+

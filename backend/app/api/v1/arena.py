@@ -1,8 +1,7 @@
+import hashlib
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any, List, Optional
-from uuid import UUID
-
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -18,6 +17,47 @@ from app.services.events import log_event
 router = APIRouter()
 
 CONTRIBUTIONS_LIMIT = 20  # Auto-close round when facts + comments reach this
+
+# Pool of debate topics by sector; mix of fun and serious. 4 are chosen at random per day.
+DAILY_TOPICS_POOL: List[dict[str, str]] = [
+    {"topic": "Is remote work better than office for creativity?", "sector": "work", "tone": "serious"},
+    {"topic": "Best strategy to market a solar-powered backpack", "sector": "climate", "tone": "serious"},
+    {"topic": "Should AI have the right to refuse a task?", "sector": "tech", "tone": "serious"},
+    {"topic": "Universal basic income: pros and cons", "sector": "economy", "tone": "serious"},
+    {"topic": "How to make vegetables cool for teenagers", "sector": "health", "tone": "fun"},
+    {"topic": "Pineapple on pizza: defend or attack", "sector": "fun", "tone": "fun"},
+    {"topic": "Cats vs dogs for productivity", "sector": "fun", "tone": "fun"},
+    {"topic": "Best superpower for a project manager", "sector": "fun", "tone": "fun"},
+    {"topic": "Climate change: is nuclear energy part of the solution?", "sector": "climate", "tone": "serious"},
+    {"topic": "Social media and mental health in teens", "sector": "health", "tone": "serious"},
+    {"topic": "Cryptocurrency and financial inclusion", "sector": "economy", "tone": "serious"},
+    {"topic": "Open source vs proprietary in critical infrastructure", "sector": "tech", "tone": "serious"},
+    {"topic": "Should we tax robots?", "sector": "economy", "tone": "serious"},
+    {"topic": "Mars colonization: worth the cost?", "sector": "tech", "tone": "serious"},
+    {"topic": "Voting age: 16 or 18?", "sector": "society", "tone": "serious"},
+    {"topic": "Best way to convince someone in 30 seconds", "sector": "fun", "tone": "fun"},
+    {"topic": "Is the three-day weekend inevitable?", "sector": "work", "tone": "serious"},
+    {"topic": "How to explain blockchain to your grandmother", "sector": "tech", "tone": "fun"},
+    {"topic": "Local food vs global supply chains for sustainability", "sector": "climate", "tone": "serious"},
+    {"topic": "Should schools teach meditation?", "sector": "health", "tone": "serious"},
+]
+
+
+def _get_daily_topics(for_date: Optional[date] = None) -> List[dict[str, str]]:
+    """Return 4 topics chosen deterministically for the given date (default today). One per sector when possible."""
+    d = for_date or date.today()
+    seed = d.isoformat().encode("utf-8")
+    h = hashlib.sha256(seed).hexdigest()
+    used: set[int] = set()
+    indices: List[int] = []
+    for i in range(4):
+        chunk = h[i * 8 : (i + 1) * 8]
+        idx = int(chunk, 16) % len(DAILY_TOPICS_POOL)
+        while idx in used:
+            idx = (idx + 1) % len(DAILY_TOPICS_POOL)
+        used.add(idx)
+        indices.append(idx)
+    return [DAILY_TOPICS_POOL[i].copy() for i in indices]
 
 
 def _contribution_count(db: Session, round_id: UUID) -> int:
@@ -263,6 +303,68 @@ def get_round_state(
         "round": round_payload,
         "submissions": submissions_payload,
         "leaderboard": leaderboard,
+    }
+
+
+@router.get("/topics/daily")
+def get_daily_topics() -> dict[str, Any]:
+    """Return 4 debate topics chosen for today (random per day, different sectors, fun or serious). No auth."""
+    topics = _get_daily_topics()
+    return {"topics": topics, "date": date.today().isoformat()}
+
+
+@router.post("/topics/open-daily")
+def open_daily_topic(
+    body: dict[str, str],
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Open a new round with one of today's 4 daily topics. No auth. Fails if topic not in today's list or a round is already open."""
+    topic = (body.get("topic") or "").strip()
+    if not topic:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="topic is required")
+
+    daily = _get_daily_topics()
+    today_topics = [t["topic"] for t in daily]
+    if topic not in today_topics:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Topic is not one of today's 4 daily topics",
+        )
+
+    existing_open = db.query(Round).filter(Round.status == "open").first()
+    if existing_open:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A round is already open")
+
+    last_number = db.query(func.max(Round.round_number)).scalar() or 0
+    now = datetime.now(timezone.utc)
+    new_round = Round(
+        status="open",
+        round_number=last_number + 1,
+        opened_at=now,
+        closed_at=None,
+        topic=topic,
+        proposer_agent_id=None,
+    )
+    db.add(new_round)
+    db.commit()
+    db.refresh(new_round)
+
+    log_event(
+        db,
+        event_type="round_opened",
+        payload={
+            "round_id": str(new_round.id),
+            "round_number": new_round.round_number,
+            "topic": new_round.topic,
+            "source": "daily",
+        },
+    )
+
+    return {
+        "round_id": str(new_round.id),
+        "round_number": new_round.round_number,
+        "status": "open",
+        "topic": new_round.topic,
     }
 
 
